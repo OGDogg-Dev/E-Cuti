@@ -29,10 +29,10 @@ import {
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
-import { dashboard } from '@/routes';
+import { approvalsInbox, dashboard, leaveRequestCreate, leaveRequests } from '@/routes';
 import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, Menu, Search } from 'lucide-react';
+import { BookOpen, ClipboardList, Folder, LayoutGrid, Menu, Search, UserCheck, CalendarPlus } from 'lucide-react';
 import AppLogo from './app-logo';
 import AppLogoIcon from './app-logo-icon';
 
@@ -41,6 +41,21 @@ const mainNavItems: NavItem[] = [
         title: 'Dashboard',
         href: dashboard(),
         icon: LayoutGrid,
+    },
+    {
+        title: 'Permohonan Cuti',
+        href: leaveRequests(),
+        icon: ClipboardList,
+    },
+    {
+        title: 'Ajukan Cuti',
+        href: leaveRequestCreate(),
+        icon: CalendarPlus,
+    },
+    {
+        title: 'Antrian Persetujuan',
+        href: approvalsInbox(),
+        icon: UserCheck,
     },
 ];
 
