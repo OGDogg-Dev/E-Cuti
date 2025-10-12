@@ -1,0 +1,286 @@
+import { LEAVE_POLICIES } from '../constants';
+import { type LeaveRequest, type LeavePolicyDefinition } from '../types';
+
+const byType = Object.fromEntries(
+    LEAVE_POLICIES.map((policy) => [policy.code, policy]),
+) as Record<string, LeavePolicyDefinition>;
+
+export const MOCK_LEAVE_REQUESTS: LeaveRequest[] = [
+    {
+        id: 'req-24001',
+        shortCode: 'LR-001',
+        employee: {
+            id: 'emp-1001',
+            name: 'Anita Pratama',
+            nip: '199201012022022001',
+            position: 'Analis SDM',
+            divisionCode: 'SDM',
+            divisionName: 'SDM',
+        },
+        type: byType.TAHUNAN,
+        period: {
+            startDate: '2025-02-10',
+            endDate: '2025-02-14',
+            workingDays: 5,
+            holidays: [],
+        },
+        status: 'WAITING_APPROVAL_KEPALA',
+        submittedAt: '2025-01-28T02:15:00Z',
+        lastUpdatedAt: '2025-01-28T02:15:00Z',
+        sla: {
+            dueAt: '2025-01-29T02:15:00Z',
+            escalated: false,
+        },
+        approvals: [
+            {
+                role: 'KEPALA_KANTOR',
+                status: 'PENDING',
+                dueAt: '2025-01-29T02:15:00Z',
+            },
+            {
+                role: 'SDM',
+                status: 'PENDING',
+            },
+        ],
+        thresholdImpact: {
+            level: 'WARNING',
+            message: 'Hanya tersisa 1 personel on-site pada divisi SDM.',
+        },
+        attachmentsRequired: false,
+        hasSupportingDocument: false,
+        blackoutViolation: false,
+        notes: 'Mengambil cuti tahunan setelah closing payroll.',
+    },
+    {
+        id: 'req-24002',
+        shortCode: 'LR-002',
+        employee: {
+            id: 'emp-1002',
+            name: 'Bagus Wirawan',
+            nip: '198812312020121002',
+            position: 'Supervisor Keuangan',
+            divisionCode: 'KEUANGAN',
+            divisionName: 'Keuangan',
+        },
+        type: byType.ALASAN_PENTING,
+        period: {
+            startDate: '2025-02-03',
+            endDate: '2025-02-05',
+            workingDays: 3,
+            holidays: [],
+        },
+        status: 'WAITING_APPROVAL_SDM',
+        submittedAt: '2025-01-26T01:30:00Z',
+        lastUpdatedAt: '2025-01-27T15:00:00Z',
+        sla: {
+            dueAt: '2025-01-28T15:00:00Z',
+            escalated: true,
+        },
+        approvals: [
+            {
+                role: 'KEPALA_KANTOR',
+                status: 'APPROVED',
+                actor: 'Rina Wibowo',
+                completedAt: '2025-01-27T13:10:00Z',
+            },
+            {
+                role: 'SDM',
+                status: 'PENDING',
+                delegatedTo: 'Yusuf Hidayat',
+                dueAt: '2025-01-28T15:00:00Z',
+            },
+        ],
+        thresholdImpact: {
+            level: 'CRITICAL',
+            message: 'Divisi Keuangan berada pada periode blackout akhir bulan.',
+        },
+        attachmentsRequired: true,
+        hasSupportingDocument: true,
+        blackoutViolation: true,
+        notes: 'Perlu pengecekan lampiran sebelum finalisasi.',
+    },
+    {
+        id: 'req-24003',
+        shortCode: 'LR-003',
+        employee: {
+            id: 'emp-1010',
+            name: 'Cici Handayani',
+            nip: '199503052021022003',
+            position: 'Staf Sarana Digital',
+            divisionCode: 'SARANA_DAN_DIGITAL',
+            divisionName: 'Sarana & Digital',
+        },
+        type: byType.SAKIT,
+        period: {
+            startDate: '2025-01-20',
+            endDate: '2025-01-22',
+            workingDays: 3,
+            holidays: [],
+        },
+        status: 'FINALIZED',
+        submittedAt: '2025-01-19T08:30:00Z',
+        lastUpdatedAt: '2025-01-23T04:20:00Z',
+        sla: {
+            dueAt: '2025-01-20T20:30:00Z',
+            escalated: false,
+        },
+        approvals: [
+            {
+                role: 'KEPALA_KANTOR',
+                status: 'APPROVED',
+                actor: 'Suryo Kurniawan',
+                completedAt: '2025-01-19T14:00:00Z',
+            },
+            {
+                role: 'SDM',
+                status: 'APPROVED',
+                actor: 'Fitri Andriani',
+                completedAt: '2025-01-20T05:30:00Z',
+            },
+        ],
+        thresholdImpact: {
+            level: 'OK',
+            message: 'Tidak ada bentrok kapasitas pada divisi.',
+        },
+        attachmentsRequired: true,
+        hasSupportingDocument: true,
+        blackoutViolation: false,
+    },
+    {
+        id: 'req-24004',
+        shortCode: 'LR-004',
+        employee: {
+            id: 'emp-1020',
+            name: 'Deni Hartanto',
+            nip: '199004152019031001',
+            position: 'Pengelola Aset',
+            divisionCode: 'ASET_BMN',
+            divisionName: 'Aset BMN',
+        },
+        type: byType.TAHUNAN,
+        period: {
+            startDate: '2025-03-10',
+            endDate: '2025-03-12',
+            workingDays: 3,
+            holidays: [],
+        },
+        status: 'APPROVED',
+        submittedAt: '2025-01-15T03:10:00Z',
+        lastUpdatedAt: '2025-01-20T10:00:00Z',
+        sla: {
+            dueAt: '2025-01-17T03:10:00Z',
+            escalated: false,
+        },
+        approvals: [
+            {
+                role: 'KEPALA_KANTOR',
+                status: 'APPROVED',
+                actor: 'Rina Wibowo',
+                completedAt: '2025-01-16T02:45:00Z',
+            },
+            {
+                role: 'SDM',
+                status: 'APPROVED',
+                actor: 'Dodi Firmansyah',
+                completedAt: '2025-01-20T09:30:00Z',
+            },
+        ],
+        thresholdImpact: {
+            level: 'OK',
+            message: 'Kapasitas layanan masih aman.',
+        },
+        attachmentsRequired: false,
+        hasSupportingDocument: false,
+        blackoutViolation: false,
+    },
+    {
+        id: 'req-24005',
+        shortCode: 'LR-005',
+        employee: {
+            id: 'emp-1031',
+            name: 'Eka Susanti',
+            nip: '199708302022022004',
+            position: 'Petugas Kebersihan',
+            divisionCode: 'KEBERSIHAN',
+            divisionName: 'Kebersihan',
+        },
+        type: byType.TAHUNAN,
+        period: {
+            startDate: '2025-02-17',
+            endDate: '2025-02-21',
+            workingDays: 5,
+            holidays: [],
+        },
+        status: 'SUBMITTED',
+        submittedAt: '2025-01-28T01:12:00Z',
+        lastUpdatedAt: '2025-01-28T01:12:00Z',
+        sla: {
+            dueAt: '2025-01-29T01:12:00Z',
+            escalated: false,
+        },
+        approvals: [
+            {
+                role: 'KEPALA_KANTOR',
+                status: 'PENDING',
+                dueAt: '2025-01-29T01:12:00Z',
+            },
+            {
+                role: 'SDM',
+                status: 'PENDING',
+            },
+        ],
+        thresholdImpact: {
+            level: 'WARNING',
+            message: 'Divisi Kebersihan mendekati batas minimum layanan.',
+        },
+        attachmentsRequired: false,
+        hasSupportingDocument: false,
+        blackoutViolation: false,
+    },
+    {
+        id: 'req-24006',
+        shortCode: 'LR-006',
+        employee: {
+            id: 'emp-1042',
+            name: 'Farah Widya',
+            nip: '199312012018022001',
+            position: 'Petugas Humas',
+            divisionCode: 'HUMAS_DAN_UMUM',
+            divisionName: 'Humas & Umum',
+        },
+        type: byType.TAHUNAN,
+        period: {
+            startDate: '2025-02-01',
+            endDate: '2025-02-04',
+            workingDays: 4,
+            holidays: ['2025-02-01'],
+        },
+        status: 'REJECTED',
+        submittedAt: '2025-01-10T06:45:00Z',
+        lastUpdatedAt: '2025-01-12T04:10:00Z',
+        sla: {
+            dueAt: '2025-01-11T06:45:00Z',
+            escalated: false,
+        },
+        approvals: [
+            {
+                role: 'KEPALA_KANTOR',
+                status: 'REJECTED',
+                actor: 'Rina Wibowo',
+                completedAt: '2025-01-12T02:00:00Z',
+                note: 'Bentrok dengan agenda prioritas divisi.',
+            },
+            {
+                role: 'SDM',
+                status: 'PENDING',
+            },
+        ],
+        thresholdImpact: {
+            level: 'OK',
+            message: 'Tidak ada risiko kapasitas.',
+        },
+        attachmentsRequired: false,
+        hasSupportingDocument: false,
+        blackoutViolation: true,
+    },
+];
