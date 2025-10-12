@@ -1,0 +1,16 @@
+<?php
+
+namespace App\Enums;
+
+enum LeaveRequestStatus: string
+{
+    case DRAFT = 'DRAFT';
+    case SUBMITTED = 'SUBMITTED';
+    case WAITING_APPROVAL_KEPALA = 'WAITING_APPROVAL_KEPALA';
+    case WAITING_APPROVAL_SDM = 'WAITING_APPROVAL_SDM';
+    case WAITING_APPROVAL_BOTH = 'WAITING_APPROVAL_BOTH';
+    case APPROVED = 'APPROVED';
+    case FINALIZED = 'FINALIZED';
+    case REJECTED = 'REJECTED';
+    case CANCELLED = 'CANCELLED';
+}
