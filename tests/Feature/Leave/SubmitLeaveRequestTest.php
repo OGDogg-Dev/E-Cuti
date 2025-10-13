@@ -47,8 +47,8 @@ function createPolicy(LeaveType $leaveType, ?Division $division = null): LeavePo
         'leave_type_id' => $leaveType->id,
         'division_id' => $division?->id,
         'approval_matrix' => [
-            ['stage' => 'KEPALA', 'role' => 'kepala_kantor'],
-            ['stage' => 'SDM', 'role' => 'sdm'],
+            ['stage' => 'Validasi SDM', 'role' => 'sdm'],
+            ['stage' => 'Persetujuan Kepala Kantor', 'role' => 'kepala_kantor'],
         ],
         'flow_type' => ApprovalFlowType::SERIAL,
     ]);
@@ -137,14 +137,14 @@ test('serial workflows honour the first stage when seeding approvals', function 
 
     $request = $user->leaveRequests()->latest()->first();
     expect($request)->not->toBeNull();
-    expect($request->status)->toBe(LeaveRequestStatus::WAITING_APPROVAL_KEPALA);
+    expect($request->status)->toBe(LeaveRequestStatus::WAITING_APPROVAL_SDM);
 
     $stages = LeaveRequestApproval::query()
         ->where('leave_request_id', $request->id)
         ->pluck('stage');
 
     expect($stages)->toHaveCount(2)
-        ->and($stages->all())->toBe(['KEPALA', 'SDM']);
+        ->and($stages->all())->toBe(['Validasi SDM', 'Persetujuan Kepala Kantor']);
 });
 
 test('threshold evaluation counts the candidate submission against minimum presence', function () {
@@ -155,7 +155,7 @@ test('threshold evaluation counts the candidate submission against minimum prese
         'leave_type_id' => $leaveType->id,
         'division_id' => $division->id,
         'approval_matrix' => [
-            ['stage' => 'KEPALA', 'role' => 'kepala_kantor'],
+            ['stage' => 'Persetujuan Kepala Kantor', 'role' => 'kepala_kantor'],
         ],
         'threshold_rules' => [[
             'min_presence' => 0.5,

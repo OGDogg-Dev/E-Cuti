@@ -46,27 +46,27 @@ class LeaveRequestSeeder extends Seeder
                 'finalized_at' => Carbon::now()->subDays(15),
                 'approvals' => [
                     [
-                        'approver' => 'dewi@ecuti.test',
-                        'stage' => 'Verifikasi Kepala Divisi',
-                        'assigned_at' => Carbon::now()->subDays(20)->addHours(1),
-                        'acted_at' => Carbon::now()->subDays(19)->addHours(3),
-                        'action' => 'APPROVED',
-                        'notes' => 'Backup sudah siap dan tidak melewati kuota.',
-                        'sla_snapshot' => [
-                            'response_hours' => 24,
-                            'escalation_hours' => 48,
-                        ],
-                    ],
-                    [
                         'approver' => 'admin@ecuti.test',
                         'stage' => 'Validasi SDM',
-                        'assigned_at' => Carbon::now()->subDays(19)->addHours(4),
-                        'acted_at' => Carbon::now()->subDays(18),
+                        'assigned_at' => Carbon::now()->subDays(20)->addHours(1),
+                        'acted_at' => Carbon::now()->subDays(19)->addHours(2),
                         'action' => 'APPROVED',
                         'notes' => 'Saldo cuti tahunan mencukupi.',
                         'sla_snapshot' => [
                             'response_hours' => 24,
                             'escalation_hours' => 36,
+                        ],
+                    ],
+                    [
+                        'approver' => 'dewi@ecuti.test',
+                        'stage' => 'Persetujuan Kepala Kantor',
+                        'assigned_at' => Carbon::now()->subDays(19)->addHours(3),
+                        'acted_at' => Carbon::now()->subDays(18)->addHours(6),
+                        'action' => 'APPROVED',
+                        'notes' => 'Backup sudah siap dan tidak melewati kuota.',
+                        'sla_snapshot' => [
+                            'response_hours' => 24,
+                            'escalation_hours' => 48,
                         ],
                     ],
                 ],
@@ -83,7 +83,7 @@ class LeaveRequestSeeder extends Seeder
                     'medical_document' => 'Surat dokter RS Sentosa',
                     'submitted_via' => 'mobile',
                 ],
-                'status' => LeaveRequestStatus::WAITING_APPROVAL_SDM,
+                'status' => LeaveRequestStatus::WAITING_APPROVAL_BOTH,
                 'document_number' => 'EC-SL-2025-0003',
                 'signature_status' => SignatureStatus::PENDING,
                 'submitted_at' => Carbon::now()->subDays(5),
@@ -91,7 +91,7 @@ class LeaveRequestSeeder extends Seeder
                 'approvals' => [
                     [
                         'approver' => 'admin@ecuti.test',
-                        'stage' => 'Review SDM',
+                        'stage' => 'Validasi SDM',
                         'assigned_at' => Carbon::now()->subDays(5)->addHours(1),
                         'acted_at' => null,
                         'action' => null,
@@ -103,7 +103,7 @@ class LeaveRequestSeeder extends Seeder
                     ],
                     [
                         'approver' => 'dewi@ecuti.test',
-                        'stage' => 'Review Kepala Divisi',
+                        'stage' => 'Persetujuan Kepala Kantor',
                         'assigned_at' => Carbon::now()->subDays(5)->addMinutes(15),
                         'acted_at' => Carbon::now()->subDays(4)->addHours(2),
                         'action' => 'APPROVED',
