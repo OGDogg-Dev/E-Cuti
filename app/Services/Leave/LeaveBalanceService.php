@@ -3,6 +3,7 @@
 namespace App\Services\Leave;
 
 use App\Models\LeaveBalance;
+use App\Models\LeavePolicy;
 use App\Models\LeaveRequest;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -22,9 +23,21 @@ class LeaveBalanceService
 
     public function ensureSufficientBalance(int $userId, int $leaveTypeId, float $duration, ?int $year = null): bool
     {
+        $year ??= Carbon::now()->year;
+
         $balance = $this->getBalance($userId, $leaveTypeId, $year);
 
-        return $balance !== null && $balance->remaining_balance >= $duration;
+        if (! $balance) {
+            return false;
+        }
+
+        if ($this->usesSharedQuota($leaveTypeId)) {
+            $summary = $this->sharedQuotaSummary($userId, $year);
+
+            return $summary !== null && $summary['remaining'] >= $duration;
+        }
+
+        return $balance->remaining_balance >= $duration;
     }
 
     public function applyFinalization(LeaveRequest $leaveRequest): void
@@ -72,5 +85,56 @@ class LeaveBalanceService
                 $query->whereHas('user', fn ($q) => $q->where('division_id', $divisionId));
             })
             ->get();
+    }
+
+    public function sharedQuotaForUser(int $userId, ?int $year = null): ?array
+    {
+        $year ??= Carbon::now()->year;
+
+        $summary = $this->sharedQuotaSummary($userId, $year);
+
+        if (! $summary) {
+            return null;
+        }
+
+        return [
+            'year' => $year,
+            'total' => $summary['opening'],
+            'used' => $summary['used'],
+            'remaining' => $summary['remaining'],
+        ];
+    }
+
+    private function usesSharedQuota(int $leaveTypeId): bool
+    {
+        $policy = LeavePolicy::query()->where('leave_type_id', $leaveTypeId)->first();
+
+        return $policy ? $policy->allowsSharedQuota() : false;
+    }
+
+    private function sharedQuotaSummary(int $userId, int $year): ?array
+    {
+        $balances = LeaveBalance::query()
+            ->where('user_id', $userId)
+            ->where('year', $year)
+            ->get();
+
+        if ($balances->isEmpty()) {
+            return null;
+        }
+
+        $opening = $balances->max(function (LeaveBalance $balance) {
+            return (float) $balance->opening_balance
+                + (float) $balance->carry_over_balance
+                + (float) $balance->adjusted_balance;
+        });
+
+        $used = (float) $balances->sum('used_balance');
+
+        return [
+            'opening' => $opening,
+            'used' => $used,
+            'remaining' => max(0.0, $opening - $used),
+        ];
     }
 }

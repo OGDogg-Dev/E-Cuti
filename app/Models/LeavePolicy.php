@@ -47,4 +47,10 @@ class LeavePolicy extends Model
     {
         return $this->hasMany(ServiceLevel::class);
     }
+
+    public function allowsSharedQuota(): bool
+    {
+        return (bool) data_get($this->threshold_rules, 'quotaSharedAcrossTypes')
+            || (bool) data_get($this->additional_constraints, 'allowQuotaSharingAcrossTypes');
+    }
 }

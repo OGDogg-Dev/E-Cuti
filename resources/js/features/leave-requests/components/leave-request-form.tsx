@@ -36,7 +36,15 @@ type LeaveBalanceSummary = {
     leave_type_id: number;
     leave_type_name: string | null;
     remaining: number;
+    used: number;
     year: number;
+};
+
+type SharedQuotaSummary = {
+    year: number;
+    total: number;
+    used: number;
+    remaining: number;
 };
 
 type ProfileSummary = {
@@ -49,6 +57,7 @@ type ProfileSummary = {
 type LeaveRequestFormProps = {
     leaveTypes: LeaveTypeOption[];
     leaveBalances: LeaveBalanceSummary[];
+    sharedQuota: SharedQuotaSummary | null;
     profile: ProfileSummary;
     className?: string;
 };
@@ -111,6 +120,7 @@ function formatEmployeeType(type?: string | null): string {
 export function LeaveRequestForm({
     leaveTypes,
     leaveBalances,
+    sharedQuota,
     profile,
     className,
 }: LeaveRequestFormProps) {
@@ -157,13 +167,28 @@ export function LeaveRequestForm({
         return leaveTypes.find((type) => type.id === Number(formState.leaveTypeId));
     }, [formState.leaveTypeId, leaveTypes]);
 
-    const selectedBalance = useMemo(() => {
+    const quotaForDisplay = useMemo(() => {
+        if (sharedQuota) {
+            return sharedQuota;
+        }
+
         if (!selectedLeaveType) {
             return undefined;
         }
 
-        return leaveBalances.find((balance) => balance.leave_type_id === selectedLeaveType.id);
-    }, [leaveBalances, selectedLeaveType]);
+        const balance = leaveBalances.find((entry) => entry.leave_type_id === selectedLeaveType.id);
+
+        if (!balance) {
+            return undefined;
+        }
+
+        return {
+            year: balance.year,
+            total: balance.remaining + balance.used,
+            used: balance.used,
+            remaining: balance.remaining,
+        } satisfies SharedQuotaSummary;
+    }, [leaveBalances, selectedLeaveType, sharedQuota]);
 
     const workingDays = useMemo(() => {
         if (!formState.startDate || !formState.endDate) {
@@ -283,25 +308,60 @@ export function LeaveRequestForm({
                         Informasi ini ditarik langsung dari saldo cuti yang tercatat di sistem SDM.
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="grid gap-3 md:grid-cols-2">
+                <CardContent className="space-y-4">
+                    {sharedQuota ? (
+                        <div className="rounded-lg border border-primary/40 bg-background/90 p-4 shadow-sm">
+                            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                Kuota lintas jenis
+                            </p>
+                            <p className="text-3xl font-semibold text-primary">
+                                {sharedQuota.remaining.toLocaleString('id-ID', {
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 2,
+                                })}{' '}
+                                hari tersisa
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                Total kuota {sharedQuota.total.toLocaleString('id-ID', {
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 2,
+                                })}{' '}
+                                hari untuk tahun {sharedQuota.year}, telah digunakan{' '}
+                                {sharedQuota.used.toLocaleString('id-ID', {
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 2,
+                                })}{' '}
+                                hari.
+                            </p>
+                        </div>
+                    ) : null}
+
                     {leaveBalances.length === 0 ? (
                         <p className="text-sm text-muted-foreground">Belum ada saldo cuti yang terdata untuk akun ini.</p>
                     ) : (
-                        leaveBalances.map((balance) => (
-                            <div
-                                key={balance.id}
-                                className="rounded-lg border border-primary/30 bg-background/80 p-4 shadow-sm"
-                            >
-                                <p className="text-sm font-medium text-foreground">{balance.leave_type_name ?? 'Jenis cuti'}</p>
-                                <p className="text-2xl font-semibold text-primary">
-                                    {balance.remaining.toLocaleString('id-ID', {
-                                        minimumFractionDigits: 0,
-                                        maximumFractionDigits: 2,
-                                    })}{' '}
-                                    hari
-                                </p>
-                            </div>
-                        ))
+                        <div className="grid gap-3 md:grid-cols-2">
+                            {leaveBalances.map((balance) => (
+                                <div
+                                    key={balance.id}
+                                    className="rounded-lg border border-primary/30 bg-background/80 p-4 shadow-sm"
+                                >
+                                    <p className="text-sm font-medium text-foreground">
+                                        {balance.leave_type_name ?? 'Jenis cuti'}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {sharedQuota
+                                            ? `Sudah digunakan ${balance.used.toLocaleString('id-ID', {
+                                                  minimumFractionDigits: 0,
+                                                  maximumFractionDigits: 2,
+                                              })} hari`
+                                            : `Sisa ${balance.remaining.toLocaleString('id-ID', {
+                                                  minimumFractionDigits: 0,
+                                                  maximumFractionDigits: 2,
+                                              })} hari`}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
                     )}
                 </CardContent>
             </Card>
@@ -486,10 +546,11 @@ export function LeaveRequestForm({
                             />
                             {errors.attachment && <p className="text-xs text-destructive">{errors.attachment[0]}</p>}
                         </div>
-                        {selectedBalance && (
+                        {quotaForDisplay && (
                             <div className="md:col-span-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-primary-900 dark:border-primary/40 dark:bg-primary/10 dark:text-primary-200">
-                                Sisa saldo cuti {selectedLeaveType?.name ?? ''}: {selectedBalance.remaining.toLocaleString('id-ID')}
-                                {' '}hari kerja.
+                                {sharedQuota
+                                    ? `Kuota cuti lintas jenis tersisa ${quotaForDisplay.remaining.toLocaleString('id-ID')} hari kerja untuk tahun ${quotaForDisplay.year}.`
+                                    : `Sisa saldo cuti ${selectedLeaveType?.name ?? ''}: ${quotaForDisplay.remaining.toLocaleString('id-ID')} hari kerja.`}
                             </div>
                         )}
                     </CardContent>
