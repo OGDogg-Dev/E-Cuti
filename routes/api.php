@@ -5,7 +5,7 @@ use App\Http\Controllers\Leave\ApprovalController;
 use App\Http\Controllers\Leave\LeaveRequestController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/leave-requests', [LeaveRequestController::class, 'index']);
     Route::post('/leave-requests', [LeaveRequestController::class, 'store']);
 

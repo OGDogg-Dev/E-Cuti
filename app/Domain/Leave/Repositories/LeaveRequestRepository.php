@@ -11,10 +11,17 @@ class LeaveRequestRepository
 {
     public function paginateForUser(User $user, array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
+        $user->loadMissing('roles');
+
         $query = LeaveRequest::query()
             ->with(['leaveType', 'division'])
-            ->where('user_id', $user->getKey())
             ->latest('created_at');
+
+        if ($user->hasAnyRole(['super_admin', 'hr_manager', 'division_head'])) {
+            // Full access for administrative roles.
+        } else {
+            $query->where('user_id', $user->getKey());
+        }
 
         if ($status = Arr::get($filters, 'status')) {
             $query->whereIn('status', (array) $status);

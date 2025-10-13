@@ -9,6 +9,7 @@ use App\Domain\Leave\Repositories\LeaveRequestRepository;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Leave\StoreLeaveRequestRequest;
 use App\Http\Resources\Leave\LeaveRequestResource;
+use App\Models\LeaveRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Auth;
@@ -23,8 +24,10 @@ class LeaveRequestController extends Controller
 
     public function index(Request $request): AnonymousResourceCollection
     {
+        $this->authorize('viewAny', LeaveRequest::class);
+
         /** @var \App\Models\User $user */
-        $user = Auth::user();
+        $user = Auth::user()->loadMissing('roles');
 
         $requests = $this->leaveRequests->paginateForUser(
             $user,
@@ -37,8 +40,10 @@ class LeaveRequestController extends Controller
 
     public function store(StoreLeaveRequestRequest $request)
     {
+        $this->authorize('create', LeaveRequest::class);
+
         /** @var \App\Models\User $user */
-        $user = Auth::user();
+        $user = Auth::user()->loadMissing('roles');
         $data = LeaveRequestData::fromRequest($request, $user);
 
         try {

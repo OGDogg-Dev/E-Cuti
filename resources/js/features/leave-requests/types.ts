@@ -81,6 +81,15 @@ export interface LeaveRequest {
     hasSupportingDocument: boolean;
     blackoutViolation: boolean;
     notes?: string;
+    attachments?: LeaveRequestAttachment[];
+}
+
+export interface LeaveRequestAttachment {
+    filename: string;
+    mimeType: string;
+    size: number;
+    url?: string | null;
+    downloadable?: boolean;
 }
 
 export interface LeaveRequestFilters {

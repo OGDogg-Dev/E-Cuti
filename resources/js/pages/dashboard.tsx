@@ -20,8 +20,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { approvalsInbox, dashboard, leaveRequests } from '@/routes';
-import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/react';
+import { type BreadcrumbItem, type SharedData } from '@/types';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { AlarmClock, ArrowUpRight, ClipboardCheck, Sparkles } from 'lucide-react';
 import { useMemo } from 'react';
 
@@ -58,6 +58,10 @@ function formatDateTime(dateString: string) {
 }
 
 export default function Dashboard() {
+    const { auth } = usePage<SharedData>().props;
+    const canViewApprovalInbox = auth?.abilities?.viewApprovalInbox ?? false;
+    const canManageLeaveBalances = auth?.abilities?.manageLeaveBalances ?? false;
+    const canViewLeaveRequests = auth?.abilities?.viewLeaveRequests ?? false;
     const referenceDate = useMemo(() => new Date(), []);
     const summary = useMemo(
         () => summarizeLeaveRequests(MOCK_LEAVE_REQUESTS, referenceDate),
@@ -102,12 +106,24 @@ export default function Dashboard() {
                             Pantau SLA persetujuan, kapasitas divisi, dan aktivitas terbaru sesuai matriks persetujuan e-Cuti.
                         </p>
                     </div>
-                    <Link
-                        href={leaveRequests().url}
-                        className="inline-flex items-center gap-2 rounded-md border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary/20"
-                    >
-                        <ClipboardCheck className="h-4 w-4" /> Kelola Permohonan
-                    </Link>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {canManageLeaveBalances && (
+                            <Link
+                                href={leaveRequests().url}
+                                className="inline-flex items-center gap-2 rounded-md border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary/20"
+                            >
+                                <Sparkles className="h-4 w-4" /> Tambah Saldo Cuti
+                            </Link>
+                        )}
+                        {canViewLeaveRequests && (
+                            <Link
+                                href={leaveRequests().url}
+                                className="inline-flex items-center gap-2 rounded-md border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary/20"
+                            >
+                                <ClipboardCheck className="h-4 w-4" /> Kelola Permohonan
+                            </Link>
+                        )}
+                    </div>
                 </div>
 
                 <LeaveRequestSummary summary={summary} />
@@ -115,7 +131,9 @@ export default function Dashboard() {
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
                     <DivisionCapacityGrid data={divisionCapacity} />
                     <div className="flex flex-col gap-6">
-                        <PendingApprovalsCard requests={pendingApprovals} />
+                        {canViewApprovalInbox && (
+                            <PendingApprovalsCard requests={pendingApprovals} />
+                        )}
                         <RecentActivityCard requests={recentActivities} />
                     </div>
                 </div>
