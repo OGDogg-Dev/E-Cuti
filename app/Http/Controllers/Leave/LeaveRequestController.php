@@ -58,6 +58,8 @@ class LeaveRequestController extends Controller
             ], 409);
         }
 
-        return new LeaveRequestResource($leaveRequest);
+        return (new LeaveRequestResource($leaveRequest))
+            ->response()
+            ->setStatusCode(201);
     }
 }

@@ -45,5 +45,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('download-leave-attachments', function (User $user): bool {
             return $user->hasAnyRole(['sdm', 'admin']);
         });
+
+        Gate::define('download-leave-documents', function (User $user, ?LeaveRequest $leaveRequest = null): bool {
+            return $user->hasAnyRole(['kepala_kantor', 'sdm', 'admin']);
+        });
     }
 }

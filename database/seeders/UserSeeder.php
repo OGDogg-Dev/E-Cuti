@@ -28,15 +28,9 @@ class UserSeeder extends Seeder
                 'division' => 'SDM',
                 'password' => 'password',
                 'roles' => ['admin', 'sdm'],
-                'balances' => [
-                    [
-                        'leave_type' => 'AL',
-                        'opening_balance' => 14,
-                        'carry_over_balance' => 3,
-                        'used_balance' => 2,
-                        'adjusted_balance' => 0,
-                        'carry_over_expires_at' => Carbon::create($currentYear, 3, 31),
-                    ],
+                'balance_overrides' => [
+                    'AL' => ['used_balance' => 2, 'carry_over_balance' => 2, 'carry_over_expires_at' => Carbon::create($currentYear, 3, 31)],
+                    'SL' => ['used_balance' => 1],
                 ],
             ],
             [
@@ -46,23 +40,9 @@ class UserSeeder extends Seeder
                 'division' => 'OPS',
                 'password' => 'password',
                 'roles' => ['kepala_kantor'],
-                'balances' => [
-                    [
-                        'leave_type' => 'AL',
-                        'opening_balance' => 12,
-                        'carry_over_balance' => 1.5,
-                        'used_balance' => 4,
-                        'adjusted_balance' => 0,
-                        'carry_over_expires_at' => Carbon::create($currentYear, 4, 30),
-                    ],
-                    [
-                        'leave_type' => 'SL',
-                        'opening_balance' => 14,
-                        'carry_over_balance' => 0,
-                        'used_balance' => 1,
-                        'adjusted_balance' => 0,
-                        'carry_over_expires_at' => null,
-                    ],
+                'balance_overrides' => [
+                    'AL' => ['used_balance' => 4, 'carry_over_balance' => 1, 'carry_over_expires_at' => Carbon::create($currentYear, 4, 30)],
+                    'SL' => ['used_balance' => 1],
                 ],
             ],
             [
@@ -72,23 +52,9 @@ class UserSeeder extends Seeder
                 'division' => 'ITS',
                 'password' => 'password',
                 'roles' => ['pegawai'],
-                'balances' => [
-                    [
-                        'leave_type' => 'AL',
-                        'opening_balance' => 12,
-                        'carry_over_balance' => 2,
-                        'used_balance' => 6,
-                        'adjusted_balance' => 0,
-                        'carry_over_expires_at' => Carbon::create($currentYear, 3, 31),
-                    ],
-                    [
-                        'leave_type' => 'SL',
-                        'opening_balance' => 14,
-                        'carry_over_balance' => 0,
-                        'used_balance' => 2,
-                        'adjusted_balance' => 0,
-                        'carry_over_expires_at' => null,
-                    ],
+                'balance_overrides' => [
+                    'AL' => ['used_balance' => 5, 'carry_over_balance' => 1, 'carry_over_expires_at' => Carbon::create($currentYear, 3, 31)],
+                    'UP' => ['used_balance' => 1],
                 ],
             ],
             [
@@ -98,31 +64,11 @@ class UserSeeder extends Seeder
                 'division' => 'SDM',
                 'password' => 'password',
                 'roles' => ['pegawai'],
-                'balances' => [
-                    [
-                        'leave_type' => 'AL',
-                        'opening_balance' => 12,
-                        'carry_over_balance' => 1,
-                        'used_balance' => 3,
-                        'adjusted_balance' => 0,
-                        'carry_over_expires_at' => Carbon::create($currentYear, 4, 30),
-                    ],
-                    [
-                        'leave_type' => 'SL',
-                        'opening_balance' => 14,
-                        'carry_over_balance' => 0,
-                        'used_balance' => 0,
-                        'adjusted_balance' => 0,
-                        'carry_over_expires_at' => null,
-                    ],
-                    [
-                        'leave_type' => 'UP',
-                        'opening_balance' => 0,
-                        'carry_over_balance' => 0,
-                        'used_balance' => 0,
-                        'adjusted_balance' => 0,
-                        'carry_over_expires_at' => null,
-                    ],
+                'balance_overrides' => [
+                    'AL' => ['used_balance' => 3, 'carry_over_balance' => 1, 'carry_over_expires_at' => Carbon::create($currentYear, 4, 30)],
+                    'SL' => ['used_balance' => 0],
+                    'MT' => ['used_balance' => 0],
+                    'UP' => ['used_balance' => 0],
                 ],
             ],
         ];
@@ -149,11 +95,12 @@ class UserSeeder extends Seeder
 
             $user->roles()->sync($roleIds);
 
-            foreach ($userData['balances'] as $balance) {
-                $leaveTypeId = $leaveTypes[$balance['leave_type']] ?? null;
-                if (! $leaveTypeId) {
-                    continue;
-                }
+            foreach ($leaveTypes as $code => $leaveTypeId) {
+                $overrides = $userData['balance_overrides'][$code] ?? [];
+
+                $carryOverExpiry = $overrides['carry_over_expires_at'] ?? ($code === 'AL'
+                    ? Carbon::create($currentYear, 3, 31)
+                    : null);
 
                 LeaveBalance::updateOrCreate(
                     [
@@ -162,14 +109,14 @@ class UserSeeder extends Seeder
                         'year' => $currentYear,
                     ],
                     [
-                        'opening_balance' => $balance['opening_balance'],
-                        'carry_over_balance' => $balance['carry_over_balance'],
-                        'used_balance' => $balance['used_balance'],
-                        'adjusted_balance' => $balance['adjusted_balance'],
-                        'carry_over_expires_at' => $balance['carry_over_expires_at'],
+                        'opening_balance' => 12,
+                        'carry_over_balance' => $overrides['carry_over_balance'] ?? 0,
+                        'used_balance' => $overrides['used_balance'] ?? 0,
+                        'adjusted_balance' => $overrides['adjusted_balance'] ?? 0,
+                        'carry_over_expires_at' => $carryOverExpiry,
                         'audit_trail' => [
                             'seeded_at' => Carbon::now()->toDateTimeString(),
-                            'notes' => 'Data awal sistem e-Cuti',
+                            'notes' => 'Saldo awal e-Cuti dengan kuota lintas jenis 12 hari',
                         ],
                     ],
                 );
