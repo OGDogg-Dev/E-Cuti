@@ -3,6 +3,7 @@ import { LucideIcon } from 'lucide-react';
 
 export interface Auth {
     user: User;
+    abilities: Record<string, boolean>;
 }
 
 export interface BreadcrumbItem {
@@ -20,6 +21,7 @@ export interface NavItem {
     href: NonNullable<InertiaLinkProps['href']>;
     icon?: LucideIcon | null;
     isActive?: boolean;
+    requiredAbility?: string;
 }
 
 export interface SharedData {
@@ -27,6 +29,12 @@ export interface SharedData {
     quote: { message: string; author: string };
     auth: Auth;
     sidebarOpen: boolean;
+    [key: string]: unknown;
+}
+
+export interface Role {
+    id: number;
+    name: string;
     [key: string]: unknown;
 }
 
@@ -39,5 +47,6 @@ export interface User {
     two_factor_enabled?: boolean;
     created_at: string;
     updated_at: string;
+    roles?: Role[];
     [key: string]: unknown; // This allows for additional properties...
 }

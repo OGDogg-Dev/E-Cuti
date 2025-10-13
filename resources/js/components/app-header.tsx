@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/tooltip';
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useInitials } from '@/hooks/use-initials';
+import { filterNavItems } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 import { approvalsInbox, dashboard, leaveRequestCreate, leaveRequests } from '@/routes';
 import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
@@ -46,16 +47,19 @@ const mainNavItems: NavItem[] = [
         title: 'Permohonan Cuti',
         href: leaveRequests(),
         icon: ClipboardList,
+        requiredAbility: 'viewLeaveRequests',
     },
     {
         title: 'Ajukan Cuti',
         href: leaveRequestCreate(),
         icon: CalendarPlus,
+        requiredAbility: 'createLeaveRequest',
     },
     {
         title: 'Antrian Persetujuan',
         href: approvalsInbox(),
         icon: UserCheck,
+        requiredAbility: 'viewApprovalInbox',
     },
 ];
 
@@ -82,6 +86,8 @@ interface AppHeaderProps {
 export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
     const page = usePage<SharedData>();
     const { auth } = page.props;
+    const abilityMap = auth?.abilities ?? {};
+    const accessibleMainNavItems = filterNavItems(mainNavItems, abilityMap);
     const getInitials = useInitials();
     return (
         <>
@@ -112,7 +118,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                 <div className="flex h-full flex-1 flex-col space-y-4 p-4">
                                     <div className="flex h-full flex-col justify-between text-sm">
                                         <div className="flex flex-col space-y-4">
-                                            {mainNavItems.map((item) => (
+                                            {accessibleMainNavItems.map((item) => (
                                                 <Link
                                                     key={item.title}
                                                     href={item.href}
@@ -171,7 +177,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                     <div className="ml-6 hidden h-full items-center space-x-6 lg:flex">
                         <NavigationMenu className="flex h-full items-stretch">
                             <NavigationMenuList className="flex h-full items-stretch space-x-2">
-                                {mainNavItems.map((item, index) => (
+                                {accessibleMainNavItems.map((item, index) => (
                                     <NavigationMenuItem
                                         key={index}
                                         className="relative flex h-full items-center"

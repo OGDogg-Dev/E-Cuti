@@ -20,8 +20,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { approvalsInbox, dashboard, leaveRequests } from '@/routes';
-import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/react';
+import { type BreadcrumbItem, type SharedData } from '@/types';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { AlarmClock, ArrowUpRight, ClipboardCheck, Sparkles } from 'lucide-react';
 import { useMemo } from 'react';
 
@@ -58,6 +58,8 @@ function formatDateTime(dateString: string) {
 }
 
 export default function Dashboard() {
+    const { auth } = usePage<SharedData>().props;
+    const canViewApprovalInbox = auth?.abilities?.viewApprovalInbox ?? false;
     const referenceDate = useMemo(() => new Date(), []);
     const summary = useMemo(
         () => summarizeLeaveRequests(MOCK_LEAVE_REQUESTS, referenceDate),
@@ -115,7 +117,9 @@ export default function Dashboard() {
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
                     <DivisionCapacityGrid data={divisionCapacity} />
                     <div className="flex flex-col gap-6">
-                        <PendingApprovalsCard requests={pendingApprovals} />
+                        {canViewApprovalInbox && (
+                            <PendingApprovalsCard requests={pendingApprovals} />
+                        )}
                         <RecentActivityCard requests={recentActivities} />
                     </div>
                 </div>

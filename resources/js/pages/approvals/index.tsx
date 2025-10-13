@@ -3,8 +3,8 @@ import { ApprovalQueueTable } from '@/features/approvals/components/approval-que
 import { MOCK_LEAVE_REQUESTS } from '@/features/leave-requests/data/mock';
 import { type LeaveRequest } from '@/features/leave-requests/types';
 import { approvalsInbox, dashboard, leaveRequests } from '@/routes';
-import { type BreadcrumbItem } from '@/types';
-import { Head } from '@inertiajs/react';
+import { type BreadcrumbItem, type SharedData } from '@/types';
+import { Head, usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -23,6 +23,8 @@ function isPendingForApproval(request: LeaveRequest) {
 }
 
 export default function ApprovalsInboxPage() {
+    const { auth } = usePage<SharedData>().props;
+    const canViewApprovalInbox = auth?.abilities?.viewApprovalInbox ?? false;
     const pendingRequests = useMemo(
         () =>
             MOCK_LEAVE_REQUESTS.filter(isPendingForApproval).sort(
@@ -30,6 +32,20 @@ export default function ApprovalsInboxPage() {
             ),
         [],
     );
+
+    if (!canViewApprovalInbox) {
+        return (
+            <AppLayout breadcrumbs={breadcrumbs}>
+                <Head title="Antrian Persetujuan" />
+                <div className="flex flex-1 items-center justify-center p-6">
+                    <p className="max-w-md text-center text-sm text-muted-foreground">
+                        Anda tidak memiliki akses ke antrian persetujuan. Pastikan Anda telah ditugaskan sebagai
+                        approver pada matriks persetujuan sebelum membuka halaman ini.
+                    </p>
+                </div>
+            </AppLayout>
+        );
+    }
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>

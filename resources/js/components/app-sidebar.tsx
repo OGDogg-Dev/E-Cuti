@@ -26,16 +26,19 @@ const mainNavItems: NavItem[] = [
         title: 'Permohonan Cuti',
         href: leaveRequests(),
         icon: ClipboardList,
+        requiredAbility: 'viewLeaveRequests',
     },
     {
         title: 'Ajukan Cuti',
         href: leaveRequestCreate(),
         icon: CalendarPlus,
+        requiredAbility: 'createLeaveRequest',
     },
     {
         title: 'Antrian Persetujuan',
         href: approvalsInbox(),
         icon: UserCheck,
+        requiredAbility: 'viewApprovalInbox',
     },
 ];
 

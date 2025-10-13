@@ -6,8 +6,8 @@ import { DivisionCapacityGrid } from '@/features/leave-requests/components/divis
 import { useLeaveRequestFilters } from '@/features/leave-requests/hooks/use-leave-request-filters';
 import { MOCK_LEAVE_REQUESTS } from '@/features/leave-requests/data/mock';
 import { dashboard, leaveRequestCreate, leaveRequests } from '@/routes';
-import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/react';
+import { type BreadcrumbItem, type SharedData } from '@/types';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -22,8 +22,25 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function LeaveRequestsPage() {
+    const { auth } = usePage<SharedData>().props;
+    const canViewLeaveRequests = auth?.abilities?.viewLeaveRequests ?? false;
+    const canCreateLeaveRequest = auth?.abilities?.createLeaveRequest ?? false;
     const { filters, filteredRequests, updateFilter, resetFilters, summary, divisionCapacity } =
         useLeaveRequestFilters(MOCK_LEAVE_REQUESTS);
+
+    if (!canViewLeaveRequests) {
+        return (
+            <AppLayout breadcrumbs={breadcrumbs}>
+                <Head title="Permohonan Cuti" />
+                <div className="flex flex-1 items-center justify-center p-6">
+                    <p className="max-w-md text-center text-sm text-muted-foreground">
+                        Anda tidak memiliki akses untuk melihat daftar permohonan cuti. Silakan hubungi administrator
+                        apabila merasa ini sebuah kesalahan.
+                    </p>
+                </div>
+            </AppLayout>
+        );
+    }
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -36,7 +53,7 @@ export default function LeaveRequestsPage() {
                             Pantau status pengajuan cuti, SLA, dan risiko kapasitas divisi dalam satu tempat.
                         </p>
                     </div>
-                    <ButtonLink href={leaveRequestCreate().url} />
+                    {canCreateLeaveRequest && <ButtonLink href={leaveRequestCreate().url} />}
                 </div>
 
                 <LeaveRequestSummary summary={summary} />
