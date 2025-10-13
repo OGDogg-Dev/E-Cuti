@@ -30,7 +30,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(LeaveAttachment::class, LeaveAttachmentPolicy::class);
 
         Gate::define('view-approval-inbox', function (User $user): bool {
-            return $user->hasAnyRole(['division_head', 'hr_manager', 'super_admin']);
+            return $user->hasAnyRole(['kepala_kantor', 'sdm', 'admin']);
         });
 
         Gate::define('process-approval', function (User $user, LeaveRequest $leaveRequest, string $stage): bool {
@@ -39,11 +39,11 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Gate::define('manage-leave-balance', function (User $user): bool {
-            return $user->hasAnyRole(['division_head', 'hr_manager', 'super_admin']);
+            return $user->hasAnyRole(['kepala_kantor', 'sdm', 'admin']);
         });
 
         Gate::define('download-leave-attachments', function (User $user): bool {
-            return $user->hasAnyRole(['hr_manager', 'super_admin']);
+            return $user->hasAnyRole(['sdm', 'admin']);
         });
     }
 }

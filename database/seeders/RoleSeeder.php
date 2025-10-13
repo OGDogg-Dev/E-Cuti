@@ -11,23 +11,23 @@ class RoleSeeder extends Seeder
     {
         $roles = [
             [
-                'name' => 'super_admin',
+                'name' => 'admin',
                 'display_name' => 'Administrator Sistem',
                 'description' => 'Mengatur konfigurasi global, pengelolaan data master, dan audit.',
             ],
             [
-                'name' => 'hr_manager',
+                'name' => 'sdm',
                 'display_name' => 'SDM',
                 'description' => 'Mengelola kebijakan cuti, SLA persetujuan, dan monitoring keseimbangan cuti.',
             ],
             [
-                'name' => 'division_head',
-                'display_name' => 'Kepala Divisi',
-                'description' => 'Menyetujui permohonan cuti untuk anggota divisi dan memonitor kapasitas tim.',
+                'name' => 'kepala_kantor',
+                'display_name' => 'Kepala Kantor',
+                'description' => 'Menyetujui permohonan cuti dan menandatangani keputusan final bagi seluruh pegawai.',
             ],
             [
-                'name' => 'employee',
-                'display_name' => 'Karyawan',
+                'name' => 'pegawai',
+                'display_name' => 'Pegawai',
                 'description' => 'Mengajukan permohonan cuti dan memantau status persetujuan.',
             ],
         ];

@@ -9,7 +9,7 @@ class LeaveAttachmentPolicy
 {
     public function view(User $user, LeaveAttachment $attachment): bool
     {
-        if ($user->hasAnyRole(['super_admin', 'hr_manager'])) {
+        if ($user->hasAnyRole(['admin', 'sdm'])) {
             return true;
         }
 
@@ -29,6 +29,6 @@ class LeaveAttachmentPolicy
 
     public function download(User $user, LeaveAttachment $attachment): bool
     {
-        return $user->hasAnyRole(['super_admin', 'hr_manager']);
+        return $user->hasAnyRole(['admin', 'sdm']);
     }
 }
