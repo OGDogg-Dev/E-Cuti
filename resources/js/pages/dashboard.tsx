@@ -33,6 +33,7 @@ import {
     ShieldCheck,
     Sparkles,
     UserCheck,
+    Users,
 } from 'lucide-react';
 import { useMemo } from 'react';
 import type { Role } from '@/types';
@@ -389,7 +390,7 @@ function getPersonaContent(role: PrimaryRole, summary: ReturnType<typeof summari
             title: 'Koordinasikan kapasitas dan saldo cuti',
             description:
                 'Pastikan approval berjalan sesuai SLA sambil meninjau dampak terhadap kapasitas divisi dan saldo karyawan.',
-            icon: Users2,
+            icon: Users,
             metrics: baseMetrics,
             highlights: [
                 `${summary.thresholdAlerts} permohonan memerlukan evaluasi threshold sebelum disetujui.`,
