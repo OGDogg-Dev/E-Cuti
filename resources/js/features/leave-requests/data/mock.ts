@@ -101,9 +101,7 @@ export const MOCK_LEAVE_REQUESTS: LeaveRequest[] = [
             },
             {
                 role: 'KEPALA_KANTOR',
-                status: 'APPROVED',
-                actor: 'Rina Wibowo',
-                completedAt: '2025-01-27T13:10:00Z',
+                status: 'PENDING',
             },
         ],
         thresholdImpact: {
@@ -151,16 +149,16 @@ export const MOCK_LEAVE_REQUESTS: LeaveRequest[] = [
         },
         approvals: [
             {
+                role: 'SDM',
+                status: 'APPROVED',
+                actor: 'Fitri Andriani',
+                completedAt: '2025-01-19T12:30:00Z',
+            },
+            {
                 role: 'KEPALA_KANTOR',
                 status: 'APPROVED',
                 actor: 'Suryo Kurniawan',
                 completedAt: '2025-01-19T14:00:00Z',
-            },
-            {
-                role: 'SDM',
-                status: 'APPROVED',
-                actor: 'Fitri Andriani',
-                completedAt: '2025-01-20T05:30:00Z',
             },
         ],
         thresholdImpact: {
@@ -198,15 +196,15 @@ export const MOCK_LEAVE_REQUESTS: LeaveRequest[] = [
         },
         approvals: [
             {
-                role: 'KEPALA_KANTOR',
-                status: 'APPROVED',
-                actor: 'Rina Wibowo',
-                completedAt: '2025-01-16T02:45:00Z',
-            },
-            {
                 role: 'SDM',
                 status: 'APPROVED',
                 actor: 'Dodi Firmansyah',
+                completedAt: '2025-01-16T02:45:00Z',
+            },
+            {
+                role: 'KEPALA_KANTOR',
+                status: 'APPROVED',
+                actor: 'Rina Wibowo',
                 completedAt: '2025-01-20T09:30:00Z',
             },
         ],
@@ -236,7 +234,7 @@ export const MOCK_LEAVE_REQUESTS: LeaveRequest[] = [
             workingDays: 5,
             holidays: [],
         },
-        status: 'SUBMITTED',
+        status: 'WAITING_APPROVAL_SDM',
         submittedAt: '2025-01-28T01:12:00Z',
         lastUpdatedAt: '2025-01-28T01:12:00Z',
         sla: {
@@ -245,12 +243,12 @@ export const MOCK_LEAVE_REQUESTS: LeaveRequest[] = [
         },
         approvals: [
             {
-                role: 'KEPALA_KANTOR',
+                role: 'SDM',
                 status: 'PENDING',
                 dueAt: '2025-01-29T01:12:00Z',
             },
             {
-                role: 'SDM',
+                role: 'KEPALA_KANTOR',
                 status: 'PENDING',
             },
         ],
@@ -289,15 +287,17 @@ export const MOCK_LEAVE_REQUESTS: LeaveRequest[] = [
         },
         approvals: [
             {
+                role: 'SDM',
+                status: 'APPROVED',
+                actor: 'Fitri Andriani',
+                completedAt: '2025-01-11T10:15:00Z',
+            },
+            {
                 role: 'KEPALA_KANTOR',
                 status: 'REJECTED',
                 actor: 'Rina Wibowo',
                 completedAt: '2025-01-12T02:00:00Z',
                 note: 'Bentrok dengan agenda prioritas divisi.',
-            },
-            {
-                role: 'SDM',
-                status: 'PENDING',
             },
         ],
         thresholdImpact: {

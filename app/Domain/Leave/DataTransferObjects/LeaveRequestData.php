@@ -45,6 +45,7 @@ class LeaveRequestData
             'leave_type_id' => $this->leaveTypeId,
             'start_date' => $this->startDate,
             'end_date' => $this->endDate,
+            'duration' => 0,
             'reason' => $this->reason,
             'status' => LeaveRequestStatus::DRAFT,
         ];

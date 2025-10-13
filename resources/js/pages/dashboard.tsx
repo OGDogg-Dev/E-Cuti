@@ -22,8 +22,20 @@ import { Separator } from '@/components/ui/separator';
 import { approvalsInbox, dashboard, leaveRequests } from '@/routes';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { AlarmClock, ArrowUpRight, ClipboardCheck, Sparkles } from 'lucide-react';
+import {
+    AlarmClock,
+    ArrowUpRight,
+    BarChart3,
+    CalendarClock,
+    ClipboardCheck,
+    Compass,
+    FileText,
+    ShieldCheck,
+    Sparkles,
+    UserCheck,
+} from 'lucide-react';
 import { useMemo } from 'react';
+import type { Role } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -62,6 +74,7 @@ export default function Dashboard() {
     const canViewApprovalInbox = auth?.abilities?.viewApprovalInbox ?? false;
     const canManageLeaveBalances = auth?.abilities?.manageLeaveBalances ?? false;
     const canViewLeaveRequests = auth?.abilities?.viewLeaveRequests ?? false;
+    const primaryRole = resolvePrimaryRole(auth?.user?.roles);
     const referenceDate = useMemo(() => new Date(), []);
     const summary = useMemo(
         () => summarizeLeaveRequests(MOCK_LEAVE_REQUESTS, referenceDate),
@@ -125,6 +138,16 @@ export default function Dashboard() {
                         )}
                     </div>
                 </div>
+
+                <RolePersonaPanel
+                    role={primaryRole}
+                    summary={summary}
+                    abilities={{
+                        canViewApprovalInbox,
+                        canManageLeaveBalances,
+                        canViewLeaveRequests,
+                    }}
+                />
 
                 <LeaveRequestSummary summary={summary} />
 
@@ -249,4 +272,197 @@ function RecentActivityCard({ requests }: { requests: typeof MOCK_LEAVE_REQUESTS
             </CardFooter>
         </Card>
     );
+}
+
+type PrimaryRole = 'sdm' | 'kepala' | 'pegawai';
+
+function resolvePrimaryRole(roles?: Role[]): PrimaryRole {
+    const normalized = (roles ?? []).map((role) => role.name.toLowerCase());
+
+    if (normalized.some((name) => name.includes('sdm') || name.includes('hr') || name.includes('human resource'))) {
+        return 'sdm';
+    }
+
+    if (normalized.some((name) => name.includes('kepala') || name.includes('pimpinan') || name.includes('head'))) {
+        return 'kepala';
+    }
+
+    return 'pegawai';
+}
+
+interface RolePersonaPanelProps {
+    role: PrimaryRole;
+    summary: ReturnType<typeof summarizeLeaveRequests>;
+    abilities: {
+        canViewApprovalInbox: boolean;
+        canManageLeaveBalances: boolean;
+        canViewLeaveRequests: boolean;
+    };
+}
+
+function RolePersonaPanel({ role, summary, abilities }: RolePersonaPanelProps) {
+    const personaContent = getPersonaContent(role, summary);
+
+    return (
+        <Card className="border border-primary/30 bg-primary/5 text-sm text-primary-foreground shadow-sm">
+            <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="space-y-2">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-primary">
+                        {personaContent.badge}
+                    </div>
+                    <CardTitle className="flex items-center gap-2 text-base text-foreground">
+                        <personaContent.icon className="h-5 w-5 text-primary" />
+                        {personaContent.title}
+                    </CardTitle>
+                    <CardDescription className="max-w-3xl text-muted-foreground">
+                        {personaContent.description}
+                    </CardDescription>
+                </div>
+                <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+                    {personaContent.metrics.map((metric) => (
+                        <div
+                            key={metric.label}
+                            className="flex flex-col gap-1 rounded-lg border border-primary/20 bg-background/60 p-3 text-left shadow-sm"
+                        >
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary/80">
+                                {metric.label}
+                            </span>
+                            <span className="text-lg font-semibold text-foreground">{metric.value}</span>
+                            <span>{metric.caption}</span>
+                        </div>
+                    ))}
+                </div>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                <ul className="space-y-3 text-muted-foreground">
+                    {personaContent.highlights.map((highlight) => (
+                        <li key={highlight} className="flex items-start gap-2">
+                            <ShieldCheck className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                            <span>{highlight}</span>
+                        </li>
+                    ))}
+                </ul>
+                <div className="grid gap-3 text-sm text-foreground lg:max-w-sm">
+                    {personaContent.actions
+                        .filter((action) => action.show(abilities))
+                        .map((action) => (
+                            <Link
+                                key={action.label}
+                                href={action.href}
+                                className="inline-flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-background px-4 py-3 font-semibold text-primary transition hover:border-primary/50 hover:bg-primary/10"
+                            >
+                                <span className="flex items-center gap-2">
+                                    <action.icon className="h-4 w-4" />
+                                    {action.label}
+                                </span>
+                                <ArrowUpRight className="h-4 w-4" />
+                            </Link>
+                        ))}
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+function getPersonaContent(role: PrimaryRole, summary: ReturnType<typeof summarizeLeaveRequests>) {
+    const baseMetrics = [
+        {
+            label: 'Pending',
+            value: summary.pendingApproval,
+            caption: 'Menunggu keputusan final',
+        },
+        {
+            label: 'SLA',
+            value: summary.slaBreached,
+            caption: 'Butuh pengingat segera',
+        },
+        {
+            label: 'Finalisasi',
+            value: summary.finalized,
+            caption: 'Selesai bulan ini',
+        },
+    ];
+
+    if (role === 'sdm') {
+        return {
+            badge: 'Fokus SDM',
+            title: 'Koordinasikan kapasitas dan saldo cuti',
+            description:
+                'Pastikan approval berjalan sesuai SLA sambil meninjau dampak terhadap kapasitas divisi dan saldo karyawan.',
+            icon: Users2,
+            metrics: baseMetrics,
+            highlights: [
+                `${summary.thresholdAlerts} permohonan memerlukan evaluasi threshold sebelum disetujui.`,
+                'Gunakan pengingat SLA otomatis untuk menjaga komitmen layanan.',
+                'Delegasikan persetujuan saat pejabat inti tidak tersedia.',
+            ],
+            actions: [
+                {
+                    label: 'Buka antrian persetujuan',
+                    href: approvalsInbox().url,
+                    icon: CalendarClock,
+                    show: ({ canViewApprovalInbox }: RolePersonaPanelProps['abilities']) => canViewApprovalInbox,
+                },
+                {
+                    label: 'Kelola permohonan & saldo',
+                    href: leaveRequests().url,
+                    icon: FileText,
+                    show: ({ canManageLeaveBalances, canViewLeaveRequests }) =>
+                        canManageLeaveBalances || canViewLeaveRequests,
+                },
+            ],
+        } as const;
+    }
+
+    if (role === 'kepala') {
+        return {
+            badge: 'Prioritas Kepala Kantor',
+            title: 'Validasi dampak operasional sebelum menyetujui',
+            description:
+                'Tinjau kapasitas layanan, delegasi aktif, dan histori keputusan sebelum menandatangani permohonan cuti.',
+            icon: BarChart3,
+            metrics: baseMetrics,
+            highlights: [
+                `${summary.pendingApproval} permohonan menunggu persetujuan atau delegasi Anda.`,
+                'Gunakan insight kapasitas divisi untuk menjaga kelangsungan layanan.',
+                'Audit trail lengkap tersedia untuk setiap keputusan yang Anda ambil.',
+            ],
+            actions: [
+                {
+                    label: 'Lihat prioritas hari ini',
+                    href: approvalsInbox().url,
+                    icon: Compass,
+                    show: ({ canViewApprovalInbox }) => canViewApprovalInbox,
+                },
+                {
+                    label: 'Pantau permohonan aktif',
+                    href: leaveRequests().url,
+                    icon: CalendarClock,
+                    show: ({ canViewLeaveRequests }) => canViewLeaveRequests,
+                },
+            ],
+        } as const;
+    }
+
+    return {
+        badge: 'Agenda Pegawai',
+        title: 'Kelola rencana cuti dan pantau status',
+        description:
+            'Lihat riwayat pengajuan, status persetujuan, dan insight saldo untuk merencanakan cuti dengan percaya diri.',
+        icon: UserCheck,
+        metrics: baseMetrics,
+        highlights: [
+            'Pantau status persetujuan secara real-time tanpa harus menanyakan manual.',
+            'Pastikan saldo cuti mencukupi sebelum menjadwalkan cuti berikutnya.',
+            'Akses arsip surat cuti yang sudah disetujui kapan saja.',
+        ],
+        actions: [
+            {
+                label: 'Buat permohonan baru',
+                href: leaveRequests().url,
+                icon: Sparkles,
+                show: ({ canViewLeaveRequests }) => canViewLeaveRequests,
+            },
+        ],
+    } as const;
 }

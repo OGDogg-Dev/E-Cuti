@@ -24,7 +24,7 @@ class LeaveTypeSeeder extends Seeder
                     'lessThanSixMonths' => 0.5,
                     'sixToTwelveMonths' => 1.0,
                 ],
-                'applicable_roles' => ['employee', 'division_head'],
+                'applicable_roles' => ['pegawai', 'kepala_kantor'],
             ],
             [
                 'code' => 'SL',
@@ -36,7 +36,7 @@ class LeaveTypeSeeder extends Seeder
                 'allow_carry_over' => false,
                 'carry_over_expiry_months' => null,
                 'prorate_rules' => null,
-                'applicable_roles' => ['employee', 'division_head', 'hr_manager'],
+                'applicable_roles' => ['pegawai', 'kepala_kantor', 'sdm'],
             ],
             [
                 'code' => 'MT',
@@ -48,7 +48,7 @@ class LeaveTypeSeeder extends Seeder
                 'allow_carry_over' => false,
                 'carry_over_expiry_months' => null,
                 'prorate_rules' => ['preLeaveBriefing' => true],
-                'applicable_roles' => ['employee'],
+                'applicable_roles' => ['pegawai'],
             ],
             [
                 'code' => 'UP',
@@ -60,7 +60,7 @@ class LeaveTypeSeeder extends Seeder
                 'allow_carry_over' => false,
                 'carry_over_expiry_months' => null,
                 'prorate_rules' => ['approvalThreshold' => 'director'],
-                'applicable_roles' => ['employee', 'division_head'],
+                'applicable_roles' => ['pegawai', 'kepala_kantor'],
             ],
         ];
 

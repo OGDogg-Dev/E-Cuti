@@ -235,8 +235,8 @@ class LeaveRequestWorkflowService
             $previousStages = $matrix
                 ->take($stageIndex)
                 ->reject(function ($previousConfig) use ($stageConfig) {
-                    return $this->stageHasRole($stageConfig, 'hr_manager')
-                        && $this->stageHasRole($previousConfig, 'division_head');
+                    return $this->stageHasRole($stageConfig, 'sdm')
+                        && $this->stageHasRole($previousConfig, 'kepala_kantor');
                 })
                 ->pluck('stage')
                 ->filter()
@@ -249,9 +249,9 @@ class LeaveRequestWorkflowService
                 return false;
             }
 
-            if ($this->stageHasRole($stageConfig, 'division_head')) {
+            if ($this->stageHasRole($stageConfig, 'kepala_kantor')) {
                 $hrStages = $matrix
-                    ->filter(fn ($config) => $this->stageHasRole($config, 'hr_manager'))
+                    ->filter(fn ($config) => $this->stageHasRole($config, 'sdm'))
                     ->pluck('stage')
                     ->filter()
                     ->all();
@@ -280,20 +280,17 @@ class LeaveRequestWorkflowService
             return LeaveRequestStatus::WAITING_APPROVAL_KEPALA;
         }
 
-        $roles = $matrix
-            ->flatMap(fn ($stageConfig) => $this->resolveStageRoles($stageConfig))
-            ->unique()
-            ->all();
+        $firstStage = $matrix->first(function ($stageConfig) {
+            return Arr::get($stageConfig, 'role') || Arr::get($stageConfig, 'fallback_role');
+        }) ?? $matrix->first();
 
-        if (in_array('hr_manager', $roles, true) || in_array('super_admin', $roles, true)) {
-            return LeaveRequestStatus::WAITING_APPROVAL_SDM;
-        }
+        $primaryRole = Arr::get($firstStage, 'role') ?? Arr::get($firstStage, 'fallback_role');
 
-        if (in_array('division_head', $roles, true)) {
+        if (! $primaryRole) {
             return LeaveRequestStatus::WAITING_APPROVAL_KEPALA;
         }
 
-        return LeaveRequestStatus::WAITING_APPROVAL_BOTH;
+        return $this->statusForRole($primaryRole, $policy->flow_type);
     }
 
     private function statusForRole(?string $role, ApprovalFlowType $flowType): LeaveRequestStatus
@@ -303,8 +300,8 @@ class LeaveRequestWorkflowService
         }
 
         return match ($role) {
-            'hr_manager', 'super_admin' => LeaveRequestStatus::WAITING_APPROVAL_SDM,
-            'division_head' => LeaveRequestStatus::WAITING_APPROVAL_KEPALA,
+            'sdm', 'admin' => LeaveRequestStatus::WAITING_APPROVAL_SDM,
+            'kepala_kantor' => LeaveRequestStatus::WAITING_APPROVAL_KEPALA,
             default => LeaveRequestStatus::WAITING_APPROVAL_BOTH,
         };
     }
@@ -344,18 +341,26 @@ class LeaveRequestWorkflowService
 
     private function seedApprovalStages(LeaveRequest $leaveRequest, LeavePolicy $policy): void
     {
-        $matrix = collect($policy->approval_matrix);
+        $matrix = collect($policy->approval_matrix ?? []);
         $stages = $policy->flow_type === ApprovalFlowType::PARALLEL_AND
-            ? $matrix->flatten(1)->unique('stage')
+            ? $matrix->unique('stage')->values()
             : $matrix;
 
-        $stages->each(function ($stageConfig) use ($leaveRequest) {
+        $assignedAt = Carbon::now();
+
+        $stages->each(function ($stageConfig) use ($leaveRequest, $assignedAt) {
+            $stage = Arr::get($stageConfig, 'stage');
+
+            if (! $stage) {
+                return;
+            }
+
             LeaveRequestApproval::create([
                 'leave_request_id' => $leaveRequest->id,
                 'approver_id' => null,
-                'stage' => Arr::get($stageConfig, 'stage'),
-                'assigned_at' => Carbon::now(),
-                'sla_snapshot' => Arr::get($stageConfig, 'sla'),
+                'stage' => $stage,
+                'assigned_at' => $assignedAt,
+                'sla_snapshot' => Arr::get($stageConfig, 'sla', []),
             ]);
         });
     }

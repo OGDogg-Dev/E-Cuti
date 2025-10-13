@@ -25,28 +25,28 @@ class LeavePolicySeeder extends Seeder
                 'flow_type' => ApprovalFlowType::SERIAL,
                 'approval_matrix' => [
                     [
-                        'stage' => 'Verifikasi Kepala Divisi',
-                        'role' => 'division_head',
-                        'fallback_role' => 'hr_manager',
+                        'stage' => 'Validasi SDM',
+                        'role' => 'sdm',
+                        'fallback_role' => 'admin',
                         'action' => 'APPROVAL',
                     ],
                     [
-                        'stage' => 'Validasi SDM',
-                        'role' => 'hr_manager',
-                        'fallback_role' => 'super_admin',
+                        'stage' => 'Persetujuan Kepala Kantor',
+                        'role' => 'kepala_kantor',
+                        'fallback_role' => 'admin',
                         'action' => 'FINAL_APPROVAL',
                     ],
                 ],
                 'sla_rules' => [
                     [
-                        'stage' => 'Verifikasi Kepala Divisi',
-                        'response_hours' => 24,
-                        'escalation_hours' => 48,
-                    ],
-                    [
                         'stage' => 'Validasi SDM',
                         'response_hours' => 24,
                         'escalation_hours' => 36,
+                    ],
+                    [
+                        'stage' => 'Persetujuan Kepala Kantor',
+                        'response_hours' => 24,
+                        'escalation_hours' => 48,
                     ],
                 ],
                 'threshold_rules' => [
@@ -64,16 +64,16 @@ class LeavePolicySeeder extends Seeder
                 ],
                 'service_levels' => [
                     [
-                        'stage' => 'Verifikasi Kepala Divisi',
-                        'response_time_hours' => 24,
-                        'escalation_time_hours' => 48,
-                        'escalate_to_role' => 'hr_manager',
-                    ],
-                    [
                         'stage' => 'Validasi SDM',
                         'response_time_hours' => 24,
                         'escalation_time_hours' => 36,
-                        'escalate_to_role' => 'super_admin',
+                        'escalate_to_role' => 'kepala_kantor',
+                    ],
+                    [
+                        'stage' => 'Persetujuan Kepala Kantor',
+                        'response_time_hours' => 24,
+                        'escalation_time_hours' => 48,
+                        'escalate_to_role' => 'admin',
                     ],
                 ],
             ],
@@ -83,26 +83,26 @@ class LeavePolicySeeder extends Seeder
                 'flow_type' => ApprovalFlowType::PARALLEL_AND,
                 'approval_matrix' => [
                     [
-                        'stage' => 'Review Kepala Divisi',
-                        'role' => 'division_head',
-                        'fallback_role' => null,
+                        'stage' => 'Validasi SDM',
+                        'role' => 'sdm',
+                        'fallback_role' => 'admin',
                         'action' => 'VALIDATE',
                     ],
                     [
-                        'stage' => 'Review SDM',
-                        'role' => 'hr_manager',
+                        'stage' => 'Persetujuan Kepala Kantor',
+                        'role' => 'kepala_kantor',
                         'fallback_role' => null,
                         'action' => 'VALIDATE',
                     ],
                 ],
                 'sla_rules' => [
                     [
-                        'stage' => 'Review Kepala Divisi',
+                        'stage' => 'Validasi SDM',
                         'response_hours' => 12,
                         'escalation_hours' => 24,
                     ],
                     [
-                        'stage' => 'Review SDM',
+                        'stage' => 'Persetujuan Kepala Kantor',
                         'response_hours' => 12,
                         'escalation_hours' => 24,
                     ],
@@ -119,16 +119,16 @@ class LeavePolicySeeder extends Seeder
                 ],
                 'service_levels' => [
                     [
-                        'stage' => 'Review Kepala Divisi',
+                        'stage' => 'Validasi SDM',
                         'response_time_hours' => 12,
                         'escalation_time_hours' => 24,
-                        'escalate_to_role' => 'hr_manager',
+                        'escalate_to_role' => 'kepala_kantor',
                     ],
                     [
-                        'stage' => 'Review SDM',
+                        'stage' => 'Persetujuan Kepala Kantor',
                         'response_time_hours' => 12,
                         'escalation_time_hours' => 24,
-                        'escalate_to_role' => 'super_admin',
+                        'escalate_to_role' => 'admin',
                     ],
                 ],
             ],
@@ -138,37 +138,26 @@ class LeavePolicySeeder extends Seeder
                 'flow_type' => ApprovalFlowType::SERIAL,
                 'approval_matrix' => [
                     [
-                        'stage' => 'Kepala Operasional',
-                        'role' => 'division_head',
-                        'fallback_role' => 'hr_manager',
+                        'stage' => 'Validasi SDM',
+                        'role' => 'sdm',
+                        'fallback_role' => 'admin',
                         'action' => 'REVIEW',
                     ],
                     [
-                        'stage' => 'SDM',
-                        'role' => 'hr_manager',
-                        'fallback_role' => 'super_admin',
-                        'action' => 'APPROVAL',
-                    ],
-                    [
-                        'stage' => 'Direktur',
-                        'role' => 'super_admin',
-                        'fallback_role' => null,
+                        'stage' => 'Persetujuan Kepala Kantor',
+                        'role' => 'kepala_kantor',
+                        'fallback_role' => 'admin',
                         'action' => 'FINAL_APPROVAL',
                     ],
                 ],
                 'sla_rules' => [
                     [
-                        'stage' => 'Kepala Operasional',
+                        'stage' => 'Validasi SDM',
                         'response_hours' => 24,
                         'escalation_hours' => 48,
                     ],
                     [
-                        'stage' => 'SDM',
-                        'response_hours' => 24,
-                        'escalation_hours' => 48,
-                    ],
-                    [
-                        'stage' => 'Direktur',
+                        'stage' => 'Persetujuan Kepala Kantor',
                         'response_hours' => 24,
                         'escalation_hours' => null,
                     ],
@@ -187,22 +176,16 @@ class LeavePolicySeeder extends Seeder
                 ],
                 'service_levels' => [
                     [
-                        'stage' => 'Kepala Operasional',
+                        'stage' => 'Validasi SDM',
                         'response_time_hours' => 24,
                         'escalation_time_hours' => 48,
-                        'escalate_to_role' => 'hr_manager',
+                        'escalate_to_role' => 'kepala_kantor',
                     ],
                     [
-                        'stage' => 'SDM',
-                        'response_time_hours' => 24,
-                        'escalation_time_hours' => 48,
-                        'escalate_to_role' => 'super_admin',
-                    ],
-                    [
-                        'stage' => 'Direktur',
+                        'stage' => 'Persetujuan Kepala Kantor',
                         'response_time_hours' => 24,
                         'escalation_time_hours' => null,
-                        'escalate_to_role' => null,
+                        'escalate_to_role' => 'admin',
                     ],
                 ],
             ],
