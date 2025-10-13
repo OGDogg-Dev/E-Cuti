@@ -4,6 +4,7 @@ namespace App\Http\Resources\Leave;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Gate;
 
 /** @mixin \App\Models\LeaveRequest */
 class LeaveRequestResource extends JsonResource
@@ -34,12 +35,27 @@ class LeaveRequestResource extends JsonResource
             'signature_status' => $this->signature_status->value,
             'submitted_at' => optional($this->submitted_at)->toIso8601String(),
             'finalized_at' => optional($this->finalized_at)->toIso8601String(),
-            'attachments' => $this->whenLoaded('attachments', fn () => $this->attachments->map(fn ($attachment) => [
-                'filename' => $attachment->filename,
-                'mime_type' => $attachment->mime_type,
-                'size' => $attachment->size,
-                'url' => $attachment->storage_path,
-            ])),
+            'attachments' => $this->whenLoaded('attachments', function () use ($request) {
+                $user = $request->user();
+
+                if (! $user) {
+                    return [];
+                }
+
+                $userGate = Gate::forUser($user);
+
+                return $this->attachments
+                    ->filter(fn ($attachment) => $userGate->allows('view', $attachment))
+                    ->map(fn ($attachment) => [
+                        'filename' => $attachment->filename,
+                        'mime_type' => $attachment->mime_type,
+                        'size' => $attachment->size,
+                        'downloadable' => $userGate->allows('download', $attachment),
+                        'url' => $userGate->allows('download', $attachment)
+                            ? $attachment->storage_path
+                            : null,
+                    ]);
+            }),
         ];
     }
 }

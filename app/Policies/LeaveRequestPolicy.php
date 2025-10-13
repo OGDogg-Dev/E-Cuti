@@ -19,12 +19,8 @@ class LeaveRequestPolicy
 
     public function view(User $user, LeaveRequest $leaveRequest): bool
     {
-        if ($user->hasAnyRole(['super_admin', 'hr_manager'])) {
+        if ($user->hasAnyRole(['super_admin', 'hr_manager', 'division_head'])) {
             return true;
-        }
-
-        if ($user->hasRole('division_head')) {
-            return (int) $user->division_id === (int) $leaveRequest->division_id;
         }
 
         return $user->getKey() === $leaveRequest->user_id;

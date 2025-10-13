@@ -56,6 +56,12 @@ class HandleInertiaRequests extends Middleware
             'viewApprovalInbox' => $user
                 ? Gate::forUser($user)->allows('view-approval-inbox')
                 : false,
+            'manageLeaveBalances' => $user
+                ? Gate::forUser($user)->allows('manage-leave-balance')
+                : false,
+            'downloadLeaveAttachments' => $user
+                ? Gate::forUser($user)->allows('download-leave-attachments')
+                : false,
         ];
 
         return [

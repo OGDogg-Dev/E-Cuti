@@ -8,7 +8,7 @@ import { MOCK_LEAVE_REQUESTS } from '@/features/leave-requests/data/mock';
 import { dashboard, leaveRequestCreate, leaveRequests } from '@/routes';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { Plus } from 'lucide-react';
+import { Info, Plus } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -25,6 +25,9 @@ export default function LeaveRequestsPage() {
     const { auth } = usePage<SharedData>().props;
     const canViewLeaveRequests = auth?.abilities?.viewLeaveRequests ?? false;
     const canCreateLeaveRequest = auth?.abilities?.createLeaveRequest ?? false;
+    const canManageLeaveBalances = auth?.abilities?.manageLeaveBalances ?? false;
+    const canViewApprovalInbox = auth?.abilities?.viewApprovalInbox ?? false;
+    const personalScopeOnly = !canManageLeaveBalances && !canViewApprovalInbox;
     const { filters, filteredRequests, updateFilter, resetFilters, summary, divisionCapacity } =
         useLeaveRequestFilters(MOCK_LEAVE_REQUESTS);
 
@@ -55,6 +58,16 @@ export default function LeaveRequestsPage() {
                     </div>
                     {canCreateLeaveRequest && <ButtonLink href={leaveRequestCreate().url} />}
                 </div>
+
+                {personalScopeOnly && (
+                    <div className="flex items-start gap-3 rounded-lg border border-dashed border-sidebar-border/60 bg-muted/30 p-4 text-xs text-muted-foreground dark:border-sidebar-border">
+                        <Info className="mt-0.5 h-4 w-4 text-primary" />
+                        <div>
+                            Daftar ini menampilkan permohonan cuti milik Anda. Persetujuan dan saldo cuti pegawai lain hanya dapat
+                            diakses oleh SDM atau Kepala Kantor.
+                        </div>
+                    </div>
+                )}
 
                 <LeaveRequestSummary summary={summary} />
 

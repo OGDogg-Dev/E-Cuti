@@ -24,7 +24,7 @@ export const MOCK_LEAVE_REQUESTS: LeaveRequest[] = [
             workingDays: 5,
             holidays: [],
         },
-        status: 'WAITING_APPROVAL_KEPALA',
+        status: 'WAITING_APPROVAL_SDM',
         submittedAt: '2025-01-28T02:15:00Z',
         lastUpdatedAt: '2025-01-28T02:15:00Z',
         sla: {
@@ -33,12 +33,12 @@ export const MOCK_LEAVE_REQUESTS: LeaveRequest[] = [
         },
         approvals: [
             {
-                role: 'KEPALA_KANTOR',
+                role: 'SDM',
                 status: 'PENDING',
                 dueAt: '2025-01-29T02:15:00Z',
             },
             {
-                role: 'SDM',
+                role: 'KEPALA_KANTOR',
                 status: 'PENDING',
             },
         ],
@@ -50,6 +50,22 @@ export const MOCK_LEAVE_REQUESTS: LeaveRequest[] = [
         hasSupportingDocument: false,
         blackoutViolation: false,
         notes: 'Mengambil cuti tahunan setelah closing payroll.',
+        attachments: [
+            {
+                filename: 'permohonan-cuti.pdf',
+                mimeType: 'application/pdf',
+                size: 245760,
+                url: '/storage/mock/permohonan-cuti.pdf',
+                downloadable: true,
+            },
+            {
+                filename: 'lampiran-bukti.png',
+                mimeType: 'image/png',
+                size: 98304,
+                url: '/storage/mock/lampiran-bukti.png',
+                downloadable: true,
+            },
+        ],
     },
     {
         id: 'req-24002',
@@ -78,16 +94,16 @@ export const MOCK_LEAVE_REQUESTS: LeaveRequest[] = [
         },
         approvals: [
             {
-                role: 'KEPALA_KANTOR',
-                status: 'APPROVED',
-                actor: 'Rina Wibowo',
-                completedAt: '2025-01-27T13:10:00Z',
-            },
-            {
                 role: 'SDM',
                 status: 'PENDING',
                 delegatedTo: 'Yusuf Hidayat',
                 dueAt: '2025-01-28T15:00:00Z',
+            },
+            {
+                role: 'KEPALA_KANTOR',
+                status: 'APPROVED',
+                actor: 'Rina Wibowo',
+                completedAt: '2025-01-27T13:10:00Z',
             },
         ],
         thresholdImpact: {
@@ -98,6 +114,15 @@ export const MOCK_LEAVE_REQUESTS: LeaveRequest[] = [
         hasSupportingDocument: true,
         blackoutViolation: true,
         notes: 'Perlu pengecekan lampiran sebelum finalisasi.',
+        attachments: [
+            {
+                filename: 'surat-keterangan.pdf',
+                mimeType: 'application/pdf',
+                size: 327680,
+                url: '/storage/mock/surat-keterangan.pdf',
+                downloadable: true,
+            },
+        ],
     },
     {
         id: 'req-24003',

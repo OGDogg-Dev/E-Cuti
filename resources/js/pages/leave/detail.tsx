@@ -11,11 +11,21 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { AlertTriangle, CalendarRange, Clock3, FileText, ShieldAlert, UserCheck } from 'lucide-react';
+import {
+    AlertTriangle,
+    CalendarRange,
+    Clock3,
+    Download,
+    FileText,
+    Paperclip,
+    ShieldAlert,
+    UserCheck,
+} from 'lucide-react';
 import { useMemo } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { approvalsInbox, dashboard, leaveRequestDetail, leaveRequests } from '@/routes';
-import { type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem, type SharedData } from '@/types';
+import { type LeaveRequest } from '@/features/leave-requests/types';
 
 interface PageProps {
     leaveRequestId: string;
@@ -39,7 +49,9 @@ function formatDateTime(dateString: string) {
 }
 
 export default function LeaveRequestDetailPage() {
-    const { leaveRequestId } = usePage<PageProps>().props;
+    const page = usePage<PageProps & SharedData>();
+    const { leaveRequestId, auth } = page.props;
+    const canDownloadAttachments = auth?.abilities?.downloadLeaveAttachments ?? false;
 
     const leaveRequest = useMemo(
         () => MOCK_LEAVE_REQUESTS.find((request) => request.id === leaveRequestId) ?? null,
@@ -197,6 +209,12 @@ export default function LeaveRequestDetailPage() {
 
                         <Separator />
 
+                        <AttachmentsSection
+                            attachments={leaveRequest.attachments ?? []}
+                            canDownload={canDownloadAttachments}
+                            attachmentsRequired={leaveRequest.attachmentsRequired}
+                        />
+
                         {leaveRequest.notes && (
                             <div className="space-y-2 text-sm">
                                 <h2 className="font-semibold text-foreground">Catatan Pemohon</h2>
@@ -223,4 +241,89 @@ export default function LeaveRequestDetailPage() {
             </div>
         </AppLayout>
     );
+}
+
+function AttachmentsSection({
+    attachments,
+    canDownload,
+    attachmentsRequired,
+}: {
+    attachments: LeaveRequest['attachments'];
+    canDownload: boolean;
+    attachmentsRequired: boolean;
+}) {
+    if (!attachments || attachments.length === 0) {
+        if (!attachmentsRequired) {
+            return null;
+        }
+
+        return (
+            <div className="rounded-lg border border-dashed border-sidebar-border/60 p-4 text-sm text-muted-foreground dark:border-sidebar-border">
+                Lampiran belum diunggah. Mohon lengkapi dokumen pendukung agar SDM dapat memverifikasi permohonan Anda.
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-3 text-sm">
+            <div className="flex items-center gap-2 text-foreground">
+                <Paperclip className="h-4 w-4 text-primary" />
+                <span className="font-semibold">Lampiran Permohonan</span>
+            </div>
+            <ul className="space-y-2">
+                {attachments.map((attachment, index) => (
+                    <li
+                        key={`${attachment?.filename ?? 'attachment'}-${index}`}
+                        className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/30 p-3 text-sm dark:border-border/40"
+                    >
+                        <div className="flex flex-col">
+                            <span className="font-medium text-foreground">{attachment?.filename ?? 'Lampiran'}</span>
+                            <span className="text-xs text-muted-foreground">
+                                {(attachment?.mimeType ?? '-').toUpperCase()} · {formatFileSize(attachment?.size)}
+                            </span>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+                            <span>{attachment?.downloadable ? 'Siap ditinjau SDM' : 'Menunggu verifikasi'}</span>
+                            {canDownload && attachment?.downloadable && attachment?.url ? (
+                                <a
+                                    href={attachment.url}
+                                    className="inline-flex items-center gap-2 rounded-md border border-primary/40 px-3 py-1 font-semibold text-primary transition hover:bg-primary/10"
+                                >
+                                    <Download className="h-3.5 w-3.5" /> Unduh
+                                </a>
+                            ) : (
+                                <span className="rounded-full bg-muted px-3 py-1 text-[11px] font-semibold text-muted-foreground">
+                                    Tidak dapat diunduh
+                                </span>
+                            )}
+                        </div>
+                    </li>
+                ))}
+            </ul>
+            {!canDownload && (
+                <p className="text-xs text-muted-foreground">
+                    Hanya SDM/Admin yang dapat mengunduh lampiran permohonan. Silakan hubungi tim SDM untuk pengecekan dokumen.
+                </p>
+            )}
+        </div>
+    );
+}
+
+function formatFileSize(size?: number): string {
+    if (!size || Number.isNaN(size)) {
+        return '-';
+    }
+
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let value = size;
+    let unitIndex = 0;
+
+    while (value >= 1024 && unitIndex < units.length - 1) {
+        value /= 1024;
+        unitIndex += 1;
+    }
+
+    const precision = value >= 10 || unitIndex === 0 ? 0 : 1;
+
+    return `${value.toFixed(precision)} ${units[unitIndex]}`;
 }

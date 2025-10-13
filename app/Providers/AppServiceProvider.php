@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\LeaveAttachment;
 use App\Models\LeaveRequest;
 use App\Models\User;
+use App\Policies\LeaveAttachmentPolicy;
 use App\Policies\LeaveRequestPolicy;
 use App\Services\Leave\LeaveRequestWorkflowService;
 use Illuminate\Support\Facades\Gate;
@@ -25,6 +27,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(LeaveRequest::class, LeaveRequestPolicy::class);
+        Gate::policy(LeaveAttachment::class, LeaveAttachmentPolicy::class);
 
         Gate::define('view-approval-inbox', function (User $user): bool {
             return $user->hasAnyRole(['division_head', 'hr_manager', 'super_admin']);
@@ -33,6 +36,14 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('process-approval', function (User $user, LeaveRequest $leaveRequest, string $stage): bool {
             return app(LeaveRequestWorkflowService::class)
                 ->userCanProcessStage($user, $leaveRequest, $stage);
+        });
+
+        Gate::define('manage-leave-balance', function (User $user): bool {
+            return $user->hasAnyRole(['division_head', 'hr_manager', 'super_admin']);
+        });
+
+        Gate::define('download-leave-attachments', function (User $user): bool {
+            return $user->hasAnyRole(['hr_manager', 'super_admin']);
         });
     }
 }
