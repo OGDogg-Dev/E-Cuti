@@ -425,7 +425,7 @@ leaveRequests.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => (
     leaveRequests.form = leaveRequestsForm
 /**
 * @see \App\Http\Controllers\Leave\LeaveRequestPageController::leaveRequestCreate
- * @see app/Http/Controllers/Leave/LeaveRequestPageController.php:16
+ * @see app/Http/Controllers/Leave/LeaveRequestPageController.php:21
  * @route '/leave/requests/create'
  */
 export const leaveRequestCreate = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -440,7 +440,7 @@ leaveRequestCreate.definition = {
 
 /**
 * @see \App\Http\Controllers\Leave\LeaveRequestPageController::leaveRequestCreate
- * @see app/Http/Controllers/Leave/LeaveRequestPageController.php:16
+ * @see app/Http/Controllers/Leave/LeaveRequestPageController.php:21
  * @route '/leave/requests/create'
  */
 leaveRequestCreate.url = (options?: RouteQueryOptions) => {
@@ -449,7 +449,7 @@ leaveRequestCreate.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Leave\LeaveRequestPageController::leaveRequestCreate
- * @see app/Http/Controllers/Leave/LeaveRequestPageController.php:16
+ * @see app/Http/Controllers/Leave/LeaveRequestPageController.php:21
  * @route '/leave/requests/create'
  */
 leaveRequestCreate.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -458,7 +458,7 @@ leaveRequestCreate.get = (options?: RouteQueryOptions): RouteDefinition<'get'> =
 })
 /**
 * @see \App\Http\Controllers\Leave\LeaveRequestPageController::leaveRequestCreate
- * @see app/Http/Controllers/Leave/LeaveRequestPageController.php:16
+ * @see app/Http/Controllers/Leave/LeaveRequestPageController.php:21
  * @route '/leave/requests/create'
  */
 leaveRequestCreate.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -468,7 +468,7 @@ leaveRequestCreate.head = (options?: RouteQueryOptions): RouteDefinition<'head'>
 
     /**
 * @see \App\Http\Controllers\Leave\LeaveRequestPageController::leaveRequestCreate
- * @see app/Http/Controllers/Leave/LeaveRequestPageController.php:16
+ * @see app/Http/Controllers/Leave/LeaveRequestPageController.php:21
  * @route '/leave/requests/create'
  */
     const leaveRequestCreateForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -478,7 +478,7 @@ leaveRequestCreate.head = (options?: RouteQueryOptions): RouteDefinition<'head'>
 
             /**
 * @see \App\Http\Controllers\Leave\LeaveRequestPageController::leaveRequestCreate
- * @see app/Http/Controllers/Leave/LeaveRequestPageController.php:16
+ * @see app/Http/Controllers/Leave/LeaveRequestPageController.php:21
  * @route '/leave/requests/create'
  */
         leaveRequestCreateForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -487,7 +487,7 @@ leaveRequestCreate.head = (options?: RouteQueryOptions): RouteDefinition<'head'>
         })
             /**
 * @see \App\Http\Controllers\Leave\LeaveRequestPageController::leaveRequestCreate
- * @see app/Http/Controllers/Leave/LeaveRequestPageController.php:16
+ * @see app/Http/Controllers/Leave/LeaveRequestPageController.php:21
  * @route '/leave/requests/create'
  */
         leaveRequestCreateForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
