@@ -13,9 +13,12 @@ use App\Models\LeaveRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class LeaveRequestController extends Controller
 {
+    use AuthorizesRequests;
+
     public function __construct(
         private readonly LeaveRequestRepository $leaveRequests,
         private readonly SubmitLeaveRequestAction $submitLeaveRequest,
