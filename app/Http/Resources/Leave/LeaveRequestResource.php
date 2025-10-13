@@ -32,7 +32,7 @@ class LeaveRequestResource extends JsonResource
             'reason' => $this->reason,
             'status' => $this->status->value,
             'document_number' => $this->document_number,
-            'signature_status' => $this->signature_status->value,
+            'signature_status' => optional($this->signature_status)->value,
             'submitted_at' => optional($this->submitted_at)->toIso8601String(),
             'finalized_at' => optional($this->finalized_at)->toIso8601String(),
             'attachments' => $this->whenLoaded('attachments', function () use ($request) {

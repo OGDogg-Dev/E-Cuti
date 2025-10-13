@@ -37,4 +37,9 @@ class Division extends Model
     {
         return $this->hasMany(LeaveRequest::class);
     }
+
+    public function employees(): HasMany
+    {
+        return $this->hasMany(User::class);
+    }
 }

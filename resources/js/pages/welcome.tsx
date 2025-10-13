@@ -2,10 +2,15 @@ import { dashboard, login, register } from '@/routes';
 import { type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
+    ArrowRight,
+    Building2,
     CalendarCheck,
+    CheckCircle2,
     Clock3,
     GitBranch,
+    Handshake,
     LineChart,
+    Quote,
     ShieldCheck,
     Sparkles,
     Users2,
@@ -27,6 +32,19 @@ type Stat = {
     value: string;
     label: string;
     description: string;
+};
+
+type RoleExperience = {
+    role: string;
+    description: string;
+    highlights: string[];
+    icon: ComponentType<{ className?: string }>;
+};
+
+type Testimonial = {
+    quote: string;
+    name: string;
+    title: string;
 };
 
 const features: Feature[] = [
@@ -89,6 +107,63 @@ const workflow: WorkflowStep[] = [
         title: 'Luncurkan & pantau',
         description:
             'Karyawan mengajukan cuti, sistem mengawal SLA dan memberikan insight kapasitas secara real-time.',
+    },
+];
+
+const roleExperiences: RoleExperience[] = [
+    {
+        role: 'Admin SDM',
+        description:
+            'Kelola kapasitas divisi, kirim pengingat SLA, dan lakukan penyesuaian saldo secara terpusat.',
+        highlights: [
+            'Dashboard SLA dan threshold otomatis memberi tahu risiko keterlambatan.',
+            'Template surat cuti digital siap unduh dengan QR hash.',
+            'Delegasi persetujuan bisa diatur sekali klik.',
+        ],
+        icon: Users2,
+    },
+    {
+        role: 'Kepala Kantor',
+        description:
+            'Ambil keputusan berdasarkan insight dampak operasional dan histori permohonan.',
+        highlights: [
+            'Prioritas persetujuan berdasarkan urgensi dan kapasitas layanan.',
+            'Riwayat keputusan tersimpan otomatis untuk audit.',
+            'Persetujuan paralel memastikan tidak ada antrean menumpuk.',
+        ],
+        icon: Building2,
+    },
+    {
+        role: 'Pegawai',
+        description:
+            'Ajukan cuti dengan jelas, lacak status secara real-time, dan simpan arsip dokumen pribadi.',
+        highlights: [
+            'Notifikasi multi-channel saat status berubah.',
+            'Simulasi sisa saldo sebelum mengirim permohonan.',
+            'Riwayat cuti tersinkron otomatis dengan kalender pribadi.',
+        ],
+        icon: CalendarCheck,
+    },
+];
+
+const testimonials: Testimonial[] = [
+    {
+        quote:
+            'Waktu proses cuti turun drastis dari dua hari menjadi hitungan jam berkat pengingat otomatis dan matriks persetujuan yang fleksibel.',
+        name: 'Nadia Santoso',
+        title: 'Head of People Operations',
+    },
+    {
+        quote:
+            'Sebagai pimpinan cabang saya bisa memantau dampak cuti pada layanan pelanggan tanpa harus membuka spreadsheet manual.',
+        name: 'Bagus Wirawan',
+        title: 'Kepala Kantor Bandung',
+    },
+    {
+        quote:
+            'Transparansi status membuat pegawai percaya diri saat mengajukan cuti karena semua detail tercatat jelas.',
+        name: 'Sinta Maharani',
+        title: 'Customer Success Specialist',
     },
 ];
 
@@ -250,6 +325,49 @@ export default function Welcome() {
                         </div>
                     </section>
 
+                    <section className="space-y-10">
+                        <div className="max-w-3xl space-y-3">
+                            <p className="text-sm font-semibold uppercase tracking-[0.34em] text-emerald-200/80">
+                                Pengalaman peran
+                            </p>
+                            <h3 className="text-3xl font-bold text-white sm:text-4xl">
+                                Dirancang untuk SDM, pimpinan, dan seluruh pegawai.
+                            </h3>
+                            <p className="text-base text-slate-300">
+                                Antarmuka responsif yang menyesuaikan kebutuhan setiap peran, lengkap dengan konteks tugas harian dan insight kapasitas.
+                            </p>
+                        </div>
+                        <div className="grid gap-6 md:grid-cols-3">
+                            {roleExperiences.map((role) => {
+                                const Icon = role.icon;
+                                return (
+                                    <article
+                                        key={role.role}
+                                        className="group relative flex flex-col gap-4 overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur transition hover:border-emerald-400/50 hover:bg-emerald-400/10"
+                                    >
+                                        <span className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-emerald-200">
+                                            {role.role}
+                                        </span>
+                                        <Icon className="h-8 w-8 text-emerald-300 transition group-hover:scale-105" />
+                                        <p className="text-sm leading-relaxed text-slate-200">{role.description}</p>
+                                        <ul className="space-y-2 text-xs text-emerald-100/90">
+                                            {role.highlights.map((highlight) => (
+                                                <li key={highlight} className="flex items-start gap-2">
+                                                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                                                    <span>{highlight}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                        <div className="mt-auto inline-flex items-center gap-2 text-xs font-semibold text-emerald-200 transition group-hover:text-emerald-100">
+                                            Pelajari alur peran
+                                            <ArrowRight className="h-3.5 w-3.5" />
+                                        </div>
+                                    </article>
+                                );
+                            })}
+                        </div>
+                    </section>
+
                     <section className="grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-start">
                         <div className="space-y-6">
                             <p className="text-sm font-semibold uppercase tracking-[0.34em] text-emerald-200/80">
@@ -305,6 +423,36 @@ export default function Welcome() {
                         </div>
                     </section>
 
+                    <section className="space-y-10">
+                        <div className="max-w-3xl space-y-3">
+                            <p className="text-sm font-semibold uppercase tracking-[0.34em] text-emerald-200/80">
+                                Cerita sukses
+                            </p>
+                            <h3 className="text-3xl font-bold text-white sm:text-4xl">
+                                Organisasi publik hingga startup mengandalkan e-Cuti.
+                            </h3>
+                        </div>
+                        <div className="grid gap-6 md:grid-cols-3">
+                            {testimonials.map((item) => (
+                                <figure
+                                    key={item.name}
+                                    className="relative flex h-full flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-6 text-sm text-slate-200 shadow-[0_40px_120px_-80px_rgba(16,185,129,0.6)] backdrop-blur"
+                                >
+                                    <Quote className="h-6 w-6 text-emerald-300" />
+                                    <blockquote className="text-sm leading-relaxed text-slate-200/90">
+                                        “{item.quote}”
+                                    </blockquote>
+                                    <figcaption className="mt-auto text-xs uppercase tracking-[0.3em] text-emerald-200/80">
+                                        {item.name}
+                                        <span className="mt-1 block text-[11px] font-medium normal-case tracking-normal text-slate-300">
+                                            {item.title}
+                                        </span>
+                                    </figcaption>
+                                </figure>
+                            ))}
+                        </div>
+                    </section>
+
                     <section className="relative overflow-hidden rounded-3xl border border-emerald-400/40 bg-emerald-500/10 p-10 text-slate-900 shadow-[0_40px_120px_-80px_rgba(16,185,129,0.8)] dark:text-white">
                         <div className="absolute inset-y-0 right-0 hidden w-1/2 bg-gradient-to-l from-emerald-500/30 to-transparent lg:block" />
                         <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-center">
@@ -330,6 +478,13 @@ export default function Welcome() {
                                     prefetch
                                 >
                                     Hubungi tim implementasi
+                                </Link>
+                                <Link
+                                    href={login()}
+                                    className="inline-flex items-center justify-center gap-2 rounded-full border border-white/60 px-6 py-3 font-semibold text-white transition hover:bg-white/10"
+                                    prefetch
+                                >
+                                    <Handshake className="h-4 w-4" /> Jadwalkan sesi demo
                                 </Link>
                             </div>
                         </div>
