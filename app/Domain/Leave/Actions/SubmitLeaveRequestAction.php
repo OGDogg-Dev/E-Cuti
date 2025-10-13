@@ -9,6 +9,7 @@ use App\Models\LeaveRequest;
 use App\Services\Leave\LeaveRequestWorkflowService;
 use App\Services\Leave\ThresholdEvaluator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class SubmitLeaveRequestAction
 {
@@ -21,15 +22,17 @@ class SubmitLeaveRequestAction
     public function execute(LeaveRequestData $data): LeaveRequest
     {
         return DB::transaction(function () use ($data) {
-            $leaveRequest = LeaveRequest::create($data->toModelAttributes());
+            $policy = $this->resolvePolicy($data);
 
-            $policy = LeavePolicy::query()->findOrFail($data->policyId);
+            $leaveRequest = new LeaveRequest($data->toModelAttributes());
 
             if ($this->thresholdEvaluator->violatesThreshold($leaveRequest)) {
                 $suggestedDates = $this->suggestAlternativeDates($leaveRequest);
 
                 throw ThresholdViolationException::withSuggestion($suggestedDates);
             }
+
+            $leaveRequest->save();
 
             if ($data->attachment) {
                 $file = $data->attachment;
@@ -47,6 +50,26 @@ class SubmitLeaveRequestAction
 
             return $leaveRequest->load(['leaveType', 'division', 'attachments']);
         });
+    }
+
+    private function resolvePolicy(LeaveRequestData $data): LeavePolicy
+    {
+        $policy = LeavePolicy::query()
+            ->whereKey($data->policyId)
+            ->where('leave_type_id', $data->leaveTypeId)
+            ->where(function ($query) use ($data) {
+                $query->whereNull('division_id')
+                    ->orWhere('division_id', $data->user->division_id);
+            })
+            ->first();
+
+        if (! $policy) {
+            throw ValidationException::withMessages([
+                'policy_id' => 'Kebijakan cuti tidak berlaku untuk pegawai ini.',
+            ]);
+        }
+
+        return $policy;
     }
 
     private function suggestAlternativeDates(LeaveRequest $leaveRequest): ?array

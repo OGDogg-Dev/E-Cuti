@@ -280,20 +280,17 @@ class LeaveRequestWorkflowService
             return LeaveRequestStatus::WAITING_APPROVAL_KEPALA;
         }
 
-        $roles = $matrix
-            ->flatMap(fn ($stageConfig) => $this->resolveStageRoles($stageConfig))
-            ->unique()
-            ->all();
+        $firstStage = $matrix->first(function ($stageConfig) {
+            return Arr::get($stageConfig, 'role') || Arr::get($stageConfig, 'fallback_role');
+        }) ?? $matrix->first();
 
-        if (in_array('hr_manager', $roles, true) || in_array('super_admin', $roles, true)) {
-            return LeaveRequestStatus::WAITING_APPROVAL_SDM;
-        }
+        $primaryRole = Arr::get($firstStage, 'role') ?? Arr::get($firstStage, 'fallback_role');
 
-        if (in_array('division_head', $roles, true)) {
+        if (! $primaryRole) {
             return LeaveRequestStatus::WAITING_APPROVAL_KEPALA;
         }
 
-        return LeaveRequestStatus::WAITING_APPROVAL_BOTH;
+        return $this->statusForRole($primaryRole, $policy->flow_type);
     }
 
     private function statusForRole(?string $role, ApprovalFlowType $flowType): LeaveRequestStatus
@@ -344,18 +341,26 @@ class LeaveRequestWorkflowService
 
     private function seedApprovalStages(LeaveRequest $leaveRequest, LeavePolicy $policy): void
     {
-        $matrix = collect($policy->approval_matrix);
+        $matrix = collect($policy->approval_matrix ?? []);
         $stages = $policy->flow_type === ApprovalFlowType::PARALLEL_AND
-            ? $matrix->flatten(1)->unique('stage')
+            ? $matrix->unique('stage')->values()
             : $matrix;
 
-        $stages->each(function ($stageConfig) use ($leaveRequest) {
+        $assignedAt = Carbon::now();
+
+        $stages->each(function ($stageConfig) use ($leaveRequest, $assignedAt) {
+            $stage = Arr::get($stageConfig, 'stage');
+
+            if (! $stage) {
+                return;
+            }
+
             LeaveRequestApproval::create([
                 'leave_request_id' => $leaveRequest->id,
                 'approver_id' => null,
-                'stage' => Arr::get($stageConfig, 'stage'),
-                'assigned_at' => Carbon::now(),
-                'sla_snapshot' => Arr::get($stageConfig, 'sla'),
+                'stage' => $stage,
+                'assigned_at' => $assignedAt,
+                'sla_snapshot' => Arr::get($stageConfig, 'sla', []),
             ]);
         });
     }

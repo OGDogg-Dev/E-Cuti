@@ -10,7 +10,7 @@ return new class extends Migration {
         Schema::create('leave_request_approvals', function (Blueprint $table) {
             $table->id();
             $table->foreignId('leave_request_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('approver_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('approver_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('delegated_from_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('stage');
             $table->timestamp('assigned_at');
