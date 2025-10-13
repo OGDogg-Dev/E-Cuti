@@ -46,22 +46,20 @@ class HandleInertiaRequests extends Middleware
             $user->loadMissing('roles:id,name');
         }
 
+        $gate = $user ? Gate::forUser($user) : null;
+        $canManageApprovals = $gate ? $gate->allows('view-approval-inbox') : false;
+        $canViewLeaveRequests = $gate ? $gate->allows('viewAny', LeaveRequest::class) : false;
+        $canDownloadAttachments = $gate ? $gate->allows('download-leave-attachments') : false;
+
         $abilities = [
-            'viewLeaveRequests' => $user
-                ? Gate::forUser($user)->allows('viewAny', LeaveRequest::class)
-                : false,
-            'createLeaveRequest' => $user
-                ? Gate::forUser($user)->allows('create', LeaveRequest::class)
-                : false,
-            'viewApprovalInbox' => $user
-                ? Gate::forUser($user)->allows('view-approval-inbox')
-                : false,
-            'manageLeaveBalances' => $user
-                ? Gate::forUser($user)->allows('manage-leave-balance')
-                : false,
-            'downloadLeaveAttachments' => $user
-                ? Gate::forUser($user)->allows('download-leave-attachments')
-                : false,
+            'viewLeaveRequests' => $canViewLeaveRequests,
+            'createLeaveRequest' => $gate ? $gate->allows('create', LeaveRequest::class) : false,
+            'viewApprovalInbox' => $canManageApprovals,
+            'manageLeaveBalances' => $gate ? $gate->allows('manage-leave-balance') : false,
+            'downloadLeaveAttachments' => $canDownloadAttachments,
+            'approveLeaveRequests' => $canManageApprovals,
+            'viewLeaveRequestDetail' => $canViewLeaveRequests,
+            'downloadLeaveDocuments' => $canDownloadAttachments,
         ];
 
         return [

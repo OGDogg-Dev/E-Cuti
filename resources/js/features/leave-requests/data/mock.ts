@@ -66,6 +66,13 @@ export const MOCK_LEAVE_REQUESTS: LeaveRequest[] = [
                 downloadable: true,
             },
         ],
+        document: {
+            filename: 'LR-001-permohonan.docx',
+            url: '/storage/mock/LR-001-permohonan.docx',
+            generatedAt: '2025-01-28T02:16:00Z',
+            format: 'DOCX',
+            size: 133120,
+        },
     },
     {
         id: 'req-24002',
@@ -121,6 +128,13 @@ export const MOCK_LEAVE_REQUESTS: LeaveRequest[] = [
                 downloadable: true,
             },
         ],
+        document: {
+            filename: 'LR-002-permohonan.docx',
+            url: '/storage/mock/LR-002-permohonan.docx',
+            generatedAt: '2025-01-26T01:32:00Z',
+            format: 'DOCX',
+            size: 129024,
+        },
     },
     {
         id: 'req-24003',
@@ -168,6 +182,13 @@ export const MOCK_LEAVE_REQUESTS: LeaveRequest[] = [
         attachmentsRequired: true,
         hasSupportingDocument: true,
         blackoutViolation: false,
+        document: {
+            filename: 'LR-003-permohonan.docx',
+            url: '/storage/mock/LR-003-permohonan.docx',
+            generatedAt: '2025-01-19T08:35:00Z',
+            format: 'DOCX',
+            size: 131072,
+        },
     },
     {
         id: 'req-24004',
@@ -215,6 +236,13 @@ export const MOCK_LEAVE_REQUESTS: LeaveRequest[] = [
         attachmentsRequired: false,
         hasSupportingDocument: false,
         blackoutViolation: false,
+        document: {
+            filename: 'LR-004-permohonan.docx',
+            url: '/storage/mock/LR-004-permohonan.docx',
+            generatedAt: '2025-01-15T03:12:00Z',
+            format: 'DOCX',
+            size: 130048,
+        },
     },
     {
         id: 'req-24005',

@@ -24,7 +24,16 @@ function isPendingForApproval(request: LeaveRequest) {
 
 export default function ApprovalsInboxPage() {
     const { auth } = usePage<SharedData>().props;
-    const canViewApprovalInbox = auth?.abilities?.viewApprovalInbox ?? false;
+    const abilityMap = auth?.abilities ?? {};
+    const canViewApprovalInbox = abilityMap.viewApprovalInbox ?? false;
+    const approvalAbilities = {
+        canApprove: abilityMap.approveLeaveRequests ?? false,
+        canViewDetail:
+            (abilityMap.viewLeaveRequestDetail ?? false) || (abilityMap.viewLeaveRequests ?? false),
+        canDownloadDocument:
+            (abilityMap.downloadLeaveDocuments ?? false) || (abilityMap.downloadLeaveAttachments ?? false),
+        canDownloadAttachments: abilityMap.downloadLeaveAttachments ?? false,
+    };
     const pendingRequests = useMemo(
         () =>
             MOCK_LEAVE_REQUESTS.filter(isPendingForApproval).sort(
@@ -58,7 +67,7 @@ export default function ApprovalsInboxPage() {
                     </p>
                 </div>
 
-                <ApprovalQueueTable requests={pendingRequests} />
+                <ApprovalQueueTable requests={pendingRequests} abilities={approvalAbilities} />
             </div>
         </AppLayout>
     );
