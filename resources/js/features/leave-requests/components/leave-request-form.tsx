@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -91,6 +91,9 @@ export function LeaveRequestForm({ className }: LeaveRequestFormProps) {
     const [formState, setFormState] = useState<FormState>(initialState);
     const [draftPreview, setDraftPreview] = useState<LeaveRequestDraft | null>(null);
     const [docPreviewUrl, setDocPreviewUrl] = useState<string | null>(null);
+    const [submissionState, setSubmissionState] = useState<'idle' | 'submitting' | 'success'>('idle');
+    const [submissionMessage, setSubmissionMessage] = useState<string | null>(null);
+    const submitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const selectedPolicy = useMemo(
         () => LEAVE_POLICIES.find((policy) => policy.code === formState.leaveType),
@@ -102,13 +105,58 @@ export function LeaveRequestForm({ className }: LeaveRequestFormProps) {
         [formState.endDate, formState.startDate],
     );
 
+    function resetSubmissionFeedback() {
+        if (submitTimeoutRef.current) {
+            clearTimeout(submitTimeoutRef.current);
+            submitTimeoutRef.current = null;
+        }
+        setSubmissionState('idle');
+        setSubmissionMessage(null);
+    }
+
     function handleChange<Key extends keyof FormState>(key: Key, value: FormState[Key]) {
         setFormState((prev) => ({ ...prev, [key]: value }));
+        if (draftPreview) {
+            setDraftPreview(null);
+        }
+        if (submissionState !== 'idle' || submissionMessage) {
+            resetSubmissionFeedback();
+        }
     }
 
     function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
+        resetSubmissionFeedback();
         setDraftPreview({ ...formState, workingDays });
+    }
+
+    function handleResetForm() {
+        resetSubmissionFeedback();
+        setFormState(initialState);
+        setDraftPreview(null);
+        setDocPreviewUrl(null);
+    }
+
+    function handleEditDraft() {
+        resetSubmissionFeedback();
+        setDraftPreview(null);
+    }
+
+    function handleFinalizeSubmission() {
+        if (!draftPreview) {
+            return;
+        }
+
+        resetSubmissionFeedback();
+        setSubmissionState('submitting');
+
+        submitTimeoutRef.current = setTimeout(() => {
+            setSubmissionState('success');
+            setSubmissionMessage(
+                'Permohonan cuti Anda telah dikirim ke SDM Admin untuk verifikasi awal. Anda akan menerima notifikasi saat status berubah.',
+            );
+            submitTimeoutRef.current = null;
+        }, 800);
     }
 
     useEffect(() => {
@@ -128,6 +176,21 @@ export function LeaveRequestForm({ className }: LeaveRequestFormProps) {
             URL.revokeObjectURL(url);
         };
     }, [draftPreview]);
+
+    useEffect(() => () => {
+        if (submitTimeoutRef.current) {
+            clearTimeout(submitTimeoutRef.current);
+        }
+    }, []);
+
+    const submitButtonLabel =
+        submissionState === 'submitting'
+            ? 'Mengirim...'
+            : submissionState === 'success'
+                ? 'Pengajuan Terkirim'
+                : 'Kirim Pengajuan Cuti';
+
+    const disableSubmitButton = submissionState === 'submitting' || submissionState === 'success';
 
     return (
         <form
@@ -286,11 +349,7 @@ export function LeaveRequestForm({ className }: LeaveRequestFormProps) {
                 <Button
                     type="button"
                     variant="outline"
-                    onClick={() => {
-                        setFormState(initialState);
-                        setDraftPreview(null);
-                        setDocPreviewUrl(null);
-                    }}
+                    onClick={handleResetForm}
                 >
                     Reset Form
                 </Button>
@@ -362,6 +421,21 @@ export function LeaveRequestForm({ className }: LeaveRequestFormProps) {
                             Pastikan kembali saldo cuti mencukupi. Sistem akan memblokir pengajuan jika saldo kurang atau melanggar blackout period.
                         </p>
                     </CardContent>
+                    <CardFooter className="flex flex-col gap-3 border-t border-primary/20 bg-primary/5 p-4 text-sm dark:border-primary/30 dark:bg-primary/20">
+                        {submissionMessage && (
+                            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300" role="status" aria-live="polite">
+                                {submissionMessage}
+                            </p>
+                        )}
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                            <Button variant="ghost" onClick={handleEditDraft} disabled={submissionState === 'submitting'}>
+                                Edit Draft
+                            </Button>
+                            <Button onClick={handleFinalizeSubmission} disabled={disableSubmitButton} className="gap-2">
+                                <CalendarCheck2 className="h-4 w-4" /> {submitButtonLabel}
+                            </Button>
+                        </div>
+                    </CardFooter>
                 </Card>
             )}
         </form>
