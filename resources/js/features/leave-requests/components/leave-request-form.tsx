@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -9,7 +9,6 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -19,425 +18,547 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
+import { calculateWorkingDays, formatDateRange } from '@/features/leave-requests/utils';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, CalendarCheck2, ClipboardList, FileDown, MailCheck } from 'lucide-react';
+import { AlertTriangle, Download, FileWarning } from 'lucide-react';
 
-import { LEAVE_POLICIES } from '../constants';
-import { calculateWorkingDays, formatDateRange } from '../utils';
-import { type LeaveRequestDraft, type LeaveTypeCode } from '../types';
-
-interface LeaveRequestFormProps {
-    className?: string;
-}
-
-type FormState = Omit<LeaveRequestDraft, 'workingDays'>;
-
-const initialState: FormState = {
-    leaveType: 'TAHUNAN',
-    startDate: '',
-    endDate: '',
-    reason: '',
-    attachments: [],
-    halfDay: false,
-    contactDuringLeave: '',
-    delegatedApprover: '',
-    notifyTeam: true,
+type LeaveTypeOption = {
+    id: number;
+    code: string;
+    name: string;
+    requires_document: boolean;
+    policy_id: number | null;
 };
 
-function formatWorkingDays(startDate: string, endDate: string) {
-    if (!startDate || !endDate) {
-        return '0 hari kerja';
-    }
-    const days = calculateWorkingDays(startDate, endDate);
-    return `${days} hari kerja`;
+type LeaveBalanceSummary = {
+    id: number;
+    leave_type_id: number;
+    leave_type_name: string | null;
+    remaining: number;
+    year: number;
+};
+
+type ProfileSummary = {
+    name: string;
+    email: string;
+    employee_number?: string | null;
+    division?: string | null;
+};
+
+type LeaveRequestFormProps = {
+    leaveTypes: LeaveTypeOption[];
+    leaveBalances: LeaveBalanceSummary[];
+    profile: ProfileSummary;
+    className?: string;
+};
+
+type SubmissionState = 'idle' | 'loading' | 'success' | 'error';
+
+type ValidationErrors = Record<string, string[]>;
+
+type LeaveRequestResponse = {
+    id: number;
+    leave_type: {
+        id: number | null;
+        name: string | null;
+    } | null;
+    start_date: string | null;
+    end_date: string | null;
+    duration: number;
+    reason: string;
+    status: string;
+    employee: {
+        full_name: string | null;
+        email: string | null;
+        nip: string | null;
+        position: string | null;
+        employee_type: string | null;
+    };
+    contact: {
+        address_during_leave: string | null;
+        contact_phone: string | null;
+    };
+    document: {
+        downloadable: boolean;
+        url: string | null;
+    };
+};
+
+type ConflictSuggestion = {
+    start_date?: string;
+    end_date?: string;
+} | null;
+
+function getXsrfToken(): string | null {
+    const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : null;
 }
 
-function formatSla(hours: number) {
-    const days = Math.floor(hours / 24);
-    const remainingHours = hours % 24;
-    if (days > 0 && remainingHours > 0) {
-        return `${days} hari ${remainingHours} jam`;
-    }
-    if (days > 0) {
-        return `${days} hari`;
-    }
-    return `${hours} jam`;
-}
+export function LeaveRequestForm({
+    leaveTypes,
+    leaveBalances,
+    profile,
+    className,
+}: LeaveRequestFormProps) {
+    const [formState, setFormState] = useState({
+        email: profile.email ?? '',
+        employeeType: 'ASN',
+        fullName: profile.name ?? '',
+        nip: profile.employee_number ?? '',
+        position: '',
+        leaveTypeId: leaveTypes[0]?.id ? String(leaveTypes[0].id) : '',
+        startDate: '',
+        endDate: '',
+        reason: '',
+        addressDuringLeave: '',
+        contactPhone: '',
+        attachment: null as File | null,
+    });
+    const errorFieldMap: Record<keyof typeof formState, string> = {
+        email: 'email',
+        employeeType: 'employee_type',
+        fullName: 'full_name',
+        nip: 'nip',
+        position: 'position',
+        leaveTypeId: 'leave_type_id',
+        startDate: 'start_date',
+        endDate: 'end_date',
+        reason: 'reason',
+        addressDuringLeave: 'address_during_leave',
+        contactPhone: 'contact_phone',
+        attachment: 'attachment',
+    };
+    const [errors, setErrors] = useState<ValidationErrors>({});
+    const [submissionState, setSubmissionState] = useState<SubmissionState>('idle');
+    const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+    const [submittedRequest, setSubmittedRequest] = useState<LeaveRequestResponse | null>(null);
+    const [conflictSuggestion, setConflictSuggestion] = useState<ConflictSuggestion>(null);
 
-function buildDocPreviewContent(draft: LeaveRequestDraft): string {
-    const attachmentsSummary = draft.attachments.length
-        ? draft.attachments.map((file) => `• ${file.name || 'Lampiran tanpa nama'}`).join('\n')
-        : '• Tidak ada lampiran';
-
-    return `Permohonan Cuti Pegawai\n\n` +
-        `Jenis Cuti : ${draft.leaveType}\n` +
-        `Periode   : ${draft.startDate || '-'} s/d ${draft.endDate || '-'} (${draft.workingDays} hari kerja)\n` +
-        `Half-day  : ${draft.halfDay ? 'Ya' : 'Tidak'}\n` +
-        `Alasan    : ${draft.reason || '-'}\n\n` +
-        `Kontak selama cuti : ${draft.contactDuringLeave || '-'}\n` +
-        `Delegasi approver  : ${draft.delegatedApprover || '-'}\n` +
-        `Notifikasi tim     : ${draft.notifyTeam ? 'Ya' : 'Tidak'}\n\n` +
-        `Lampiran:\n${attachmentsSummary}\n` +
-        `\nGenerated otomatis dari formulir e-Cuti.`;
-}
-
-function buildDocFileName(draft: LeaveRequestDraft): string {
-    const dateSegment = draft.startDate ? draft.startDate.replace(/-/g, '') : 'draft';
-    return `permohonan-cuti-${dateSegment}.doc`;
-}
-
-export function LeaveRequestForm({ className }: LeaveRequestFormProps) {
-    const [formState, setFormState] = useState<FormState>(initialState);
-    const [draftPreview, setDraftPreview] = useState<LeaveRequestDraft | null>(null);
-    const [docPreviewUrl, setDocPreviewUrl] = useState<string | null>(null);
-    const [submissionState, setSubmissionState] = useState<'idle' | 'submitting' | 'success'>('idle');
-    const [submissionMessage, setSubmissionMessage] = useState<string | null>(null);
-    const submitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    const selectedPolicy = useMemo(
-        () => LEAVE_POLICIES.find((policy) => policy.code === formState.leaveType),
-        [formState.leaveType],
-    );
-
-    const workingDays = useMemo(
-        () => calculateWorkingDays(formState.startDate, formState.endDate),
-        [formState.endDate, formState.startDate],
-    );
-
-    function resetSubmissionFeedback() {
-        if (submitTimeoutRef.current) {
-            clearTimeout(submitTimeoutRef.current);
-            submitTimeoutRef.current = null;
+    const selectedLeaveType = useMemo(() => {
+        if (!formState.leaveTypeId) {
+            return undefined;
         }
+
+        return leaveTypes.find((type) => type.id === Number(formState.leaveTypeId));
+    }, [formState.leaveTypeId, leaveTypes]);
+
+    const selectedBalance = useMemo(() => {
+        if (!selectedLeaveType) {
+            return undefined;
+        }
+
+        return leaveBalances.find((balance) => balance.leave_type_id === selectedLeaveType.id);
+    }, [leaveBalances, selectedLeaveType]);
+
+    const workingDays = useMemo(() => {
+        if (!formState.startDate || !formState.endDate) {
+            return 0;
+        }
+
+        return calculateWorkingDays(formState.startDate, formState.endDate);
+    }, [formState.startDate, formState.endDate]);
+
+    function handleInputChange(key: keyof typeof formState, value: string | File | null) {
+        setFormState((previous) => ({
+            ...previous,
+            [key]: value,
+        }));
+        const mappedKey = errorFieldMap[key];
+        if (errors[mappedKey]) {
+            setErrors((prev) => ({ ...prev, [mappedKey]: [] }));
+        }
+        setFeedbackMessage(null);
+        setConflictSuggestion(null);
         setSubmissionState('idle');
-        setSubmissionMessage(null);
     }
 
-    function handleChange<Key extends keyof FormState>(key: Key, value: FormState[Key]) {
-        setFormState((prev) => ({ ...prev, [key]: value }));
-        if (draftPreview) {
-            setDraftPreview(null);
-        }
-        if (submissionState !== 'idle' || submissionMessage) {
-            resetSubmissionFeedback();
-        }
-    }
-
-    function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        resetSubmissionFeedback();
-        setDraftPreview({ ...formState, workingDays });
-    }
+        setSubmissionState('loading');
+        setFeedbackMessage(null);
+        setErrors({});
+        setSubmittedRequest(null);
+        setConflictSuggestion(null);
 
-    function handleResetForm() {
-        resetSubmissionFeedback();
-        setFormState(initialState);
-        setDraftPreview(null);
-        setDocPreviewUrl(null);
-    }
-
-    function handleEditDraft() {
-        resetSubmissionFeedback();
-        setDraftPreview(null);
-    }
-
-    function handleFinalizeSubmission() {
-        if (!draftPreview) {
+        if (!selectedLeaveType || !selectedLeaveType.policy_id) {
+            setSubmissionState('error');
+            setErrors({
+                leave_type_id: ['Kebijakan cuti tidak tersedia untuk jenis cuti ini.'],
+            });
             return;
         }
 
-        resetSubmissionFeedback();
-        setSubmissionState('submitting');
+        const formData = new FormData();
+        formData.append('email', formState.email);
+        formData.append('employee_type', formState.employeeType);
+        formData.append('full_name', formState.fullName);
+        if (formState.nip) {
+            formData.append('nip', formState.nip);
+        }
+        formData.append('position', formState.position);
+        formData.append('leave_type_id', String(selectedLeaveType.id));
+        formData.append('policy_id', String(selectedLeaveType.policy_id));
+        formData.append('start_date', formState.startDate);
+        formData.append('end_date', formState.endDate);
+        formData.append('reason', formState.reason);
+        formData.append('address_during_leave', formState.addressDuringLeave);
+        formData.append('contact_phone', formState.contactPhone);
+        if (formState.attachment) {
+            formData.append('attachment', formState.attachment);
+        }
 
-        submitTimeoutRef.current = setTimeout(() => {
-            setSubmissionState('success');
-            setSubmissionMessage(
-                'Permohonan cuti Anda telah dikirim ke SDM Admin untuk verifikasi awal. Anda akan menerima notifikasi saat status berubah.',
-            );
-            submitTimeoutRef.current = null;
-        }, 800);
+        try {
+            const xsrfToken = getXsrfToken();
+            const response = await fetch('/api/leave-requests', {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(xsrfToken ? { 'X-XSRF-TOKEN': xsrfToken, 'X-CSRF-TOKEN': xsrfToken } : {}),
+                },
+                body: formData,
+            });
+
+            if (response.status === 201) {
+                const payload = (await response.json()) as LeaveRequestResponse;
+                setSubmittedRequest(payload);
+                setFeedbackMessage('Permohonan cuti berhasil dikirim dan menunggu validasi SDM.');
+                setSubmissionState('success');
+                return;
+            }
+
+            if (response.status === 409) {
+                const payload = await response.json();
+                setFeedbackMessage(payload.message ?? 'Permohonan bertentangan dengan kebijakan cuti.');
+                setConflictSuggestion(payload.suggested_dates ?? null);
+                setSubmissionState('error');
+                return;
+            }
+
+            if (response.status === 422) {
+                const payload = await response.json();
+                setErrors(payload.errors ?? {});
+                setFeedbackMessage('Beberapa data belum valid. Mohon periksa kembali formulir.');
+                setSubmissionState('error');
+                return;
+            }
+
+            const text = await response.text();
+            setFeedbackMessage(text || 'Terjadi kesalahan tidak terduga saat mengirim permohonan.');
+            setSubmissionState('error');
+        } catch (error) {
+            console.error(error);
+            setFeedbackMessage('Gagal mengirim permohonan karena masalah jaringan.');
+            setSubmissionState('error');
+        }
     }
-
-    useEffect(() => {
-        if (!draftPreview) {
-            setDocPreviewUrl(null);
-            return;
-        }
-
-        const content = buildDocPreviewContent(draftPreview);
-        const blob = new Blob([content], {
-            type: 'application/msword',
-        });
-        const url = URL.createObjectURL(blob);
-        setDocPreviewUrl(url);
-
-        return () => {
-            URL.revokeObjectURL(url);
-        };
-    }, [draftPreview]);
-
-    useEffect(() => () => {
-        if (submitTimeoutRef.current) {
-            clearTimeout(submitTimeoutRef.current);
-        }
-    }, []);
-
-    const submitButtonLabel =
-        submissionState === 'submitting'
-            ? 'Mengirim...'
-            : submissionState === 'success'
-                ? 'Pengajuan Terkirim'
-                : 'Kirim Pengajuan Cuti';
-
-    const disableSubmitButton = submissionState === 'submitting' || submissionState === 'success';
 
     return (
-        <form
-            onSubmit={handleSubmit}
-            className={cn('space-y-6', className)}
-            aria-labelledby="leave-form-title"
-        >
-            <Card className="border border-sidebar-border/70 bg-card dark:border-sidebar-border/70 dark:bg-neutral-900">
+        <div className={cn('flex flex-col gap-6', className)}>
+            <Card className="border border-primary/20 bg-primary/5 dark:border-primary/30">
                 <CardHeader>
-                    <CardTitle id="leave-form-title" className="text-lg">
-                        Ajukan Permohonan Cuti
-                    </CardTitle>
+                    <CardTitle className="text-base font-semibold">Sisa Kuota Cuti Tahun {new Date().getFullYear()}</CardTitle>
                     <CardDescription>
-                        Sistem akan memvalidasi saldo, blackout window, dan threshold divisi sebelum mengirim permohonan ke approver.
+                        Informasi ini ditarik langsung dari saldo cuti yang tercatat di sistem SDM.
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="grid gap-6 md:grid-cols-2">
-                    <div className="space-y-3">
-                        <Label htmlFor="leave-type">Jenis cuti</Label>
-                        <Select
-                            value={formState.leaveType}
-                            onValueChange={(value) => handleChange('leaveType', value as LeaveTypeCode)}
-                        >
-                            <SelectTrigger id="leave-type">
-                                <SelectValue placeholder="Pilih jenis cuti" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {LEAVE_POLICIES.map((policy) => (
-                                    <SelectItem key={policy.code} value={policy.code}>
-                                        {policy.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        {selectedPolicy && (
-                            <p className="text-xs text-muted-foreground">
-                                {selectedPolicy.description}
-                            </p>
-                        )}
-                    </div>
-                    <div className="space-y-3">
-                        <Label htmlFor="contact">Kontak selama cuti</Label>
-                        <Input
-                            id="contact"
-                            placeholder="Nomor HP / email"
-                            value={formState.contactDuringLeave}
-                            onChange={(event) => handleChange('contactDuringLeave', event.target.value)}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                            Informasi ini akan dibagikan kepada approver dan tim untuk kebutuhan mendesak.
-                        </p>
-                    </div>
-                    <div className="space-y-3">
-                        <Label htmlFor="start-date">Tanggal mulai</Label>
-                        <Input
-                            id="start-date"
-                            type="date"
-                            value={formState.startDate}
-                            onChange={(event) => handleChange('startDate', event.target.value)}
-                        />
-                    </div>
-                    <div className="space-y-3">
-                        <Label htmlFor="end-date">Tanggal selesai</Label>
-                        <Input
-                            id="end-date"
-                            type="date"
-                            value={formState.endDate}
-                            min={formState.startDate || undefined}
-                            onChange={(event) => handleChange('endDate', event.target.value)}
-                        />
-                        {formState.startDate && formState.endDate && (
-                            <p className="text-xs text-muted-foreground">
-                                {formatDateRange(formState.startDate, formState.endDate)} ({workingDays} hari kerja)
-                            </p>
-                        )}
-                    </div>
-                    <div className="md:col-span-2 space-y-3">
-                        <Label htmlFor="reason">Alasan cuti</Label>
-                        <textarea
-                            id="reason"
-                            value={formState.reason}
-                            onChange={(event) => handleChange('reason', event.target.value)}
-                            className="min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                            placeholder="Jelaskan alasan pengajuan dan rencana serah terima pekerjaan."
-                        />
-                    </div>
-                    <div className="space-y-3">
-                        <Label htmlFor="delegated-approver">Delegasi approver (opsional)</Label>
-                        <Input
-                            id="delegated-approver"
-                            placeholder="Nama delegasi"
-                            value={formState.delegatedApprover}
-                            onChange={(event) => handleChange('delegatedApprover', event.target.value)}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                            Gunakan saat Kepala Kantor atau SDM sedang cuti/dinas sehingga tugas dialihkan otomatis.
-                        </p>
-                    </div>
-                    <div className="space-y-3">
-                        <Label htmlFor="attachments">Lampiran pendukung</Label>
-                        <Input
-                            id="attachments"
-                            type="file"
-                            multiple
-                            onChange={(event) =>
-                                handleChange('attachments', event.target.files ? Array.from(event.target.files) : [])
-                            }
-                        />
-                        <p className="text-xs text-muted-foreground">
-                            Format PDF/JPG/PNG. Ukuran maksimal 5 MB per file.
-                        </p>
-                        {selectedPolicy?.requiresDocument && (
-                            <div className="flex items-center gap-2 rounded-md bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
-                                <AlertTriangle className="h-4 w-4" /> Lampiran wajib untuk jenis cuti ini.
+                <CardContent className="grid gap-3 md:grid-cols-2">
+                    {leaveBalances.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">Belum ada saldo cuti yang terdata untuk akun ini.</p>
+                    ) : (
+                        leaveBalances.map((balance) => (
+                            <div
+                                key={balance.id}
+                                className="rounded-lg border border-primary/30 bg-background/80 p-4 shadow-sm"
+                            >
+                                <p className="text-sm font-medium text-foreground">{balance.leave_type_name ?? 'Jenis cuti'}</p>
+                                <p className="text-2xl font-semibold text-primary">
+                                    {balance.remaining.toLocaleString('id-ID', {
+                                        minimumFractionDigits: 0,
+                                        maximumFractionDigits: 2,
+                                    })}{' '}
+                                    hari
+                                </p>
                             </div>
-                        )}
-                    </div>
-                    <div className="flex flex-col gap-3">
-                        <label className="flex items-center gap-3 text-sm">
-                            <Checkbox
-                                checked={formState.halfDay}
-                                onCheckedChange={(checked) => handleChange('halfDay', Boolean(checked))}
-                            />
-                            Ajukan sebagai half-day / jam-an (jika diizinkan policy)
-                        </label>
-                        <label className="flex items-center gap-3 text-sm">
-                            <Checkbox
-                                checked={formState.notifyTeam}
-                                onCheckedChange={(checked) => handleChange('notifyTeam', Boolean(checked))}
-                            />
-                            Kirim notifikasi ke tim divisi
-                        </label>
-                    </div>
-                </CardContent>
-                <CardFooter className="flex flex-col gap-3 border-t border-sidebar-border/60 bg-muted/30 p-6 text-sm text-muted-foreground dark:border-sidebar-border/70 dark:bg-neutral-950/40">
-                    {selectedPolicy && (
-                        <div className="flex flex-col gap-2">
-                            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                                <ClipboardList className="h-4 w-4 text-primary" /> SLA Persetujuan
-                            </div>
-                            <p>
-                                Kepala Kantor: {formatSla(selectedPolicy.sla.kepalaKantorHours)} · SDM: {formatSla(selectedPolicy.sla.sdmHours)} · Eskalasi otomatis jika lebih dari {formatSla(selectedPolicy.sla.escalationHours)}.
-                            </p>
-                        </div>
+                        ))
                     )}
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <CalendarCheck2 className="h-4 w-4" /> Durasi pengajuan: {formatWorkingDays(formState.startDate, formState.endDate)}.
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <MailCheck className="h-4 w-4" /> Notifikasi akan dikirim ke approver setelah validasi awal berhasil.
-                    </div>
-                </CardFooter>
+                </CardContent>
             </Card>
 
-            <div className="flex justify-end gap-3">
-                <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleResetForm}
-                >
-                    Reset Form
-                </Button>
-                <Button type="submit" className="gap-2">
-                    Review Permohonan
-                </Button>
-            </div>
-
-            {draftPreview && (
-                <Card className="border border-primary/40 bg-primary/5 dark:border-primary/40 dark:bg-primary/10">
+            <form onSubmit={handleSubmit} className="space-y-6" aria-labelledby="leave-form-title">
+                <Card className="border border-sidebar-border/60 bg-card dark:bg-neutral-900">
                     <CardHeader>
-                        <CardTitle className="text-base">Ringkasan Draft Permohonan</CardTitle>
+                        <CardTitle id="leave-form-title" className="text-lg">
+                            Formulir Permintaan Cuti
+                        </CardTitle>
                         <CardDescription>
-                            Data berikut akan dikirim ke backend setelah Anda menekan tombol submit pada langkah berikutnya.
+                            Lengkapi data berikut untuk memulai proses persetujuan cuti. SDM akan memvalidasi terlebih dahulu
+                            sebelum diteruskan ke Kepala Kantor.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                            <Label htmlFor="full-name">Nama Lengkap</Label>
+                            <Input
+                                id="full-name"
+                                value={formState.fullName}
+                                onChange={(event) => handleInputChange('fullName', event.target.value)}
+                                required
+                                placeholder="Nama sesuai identitas"
+                            />
+                            {errors.full_name && (
+                                <p className="text-xs text-destructive">{errors.full_name[0]}</p>
+                            )}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="email">Email</Label>
+                            <Input
+                                id="email"
+                                type="email"
+                                value={formState.email}
+                                onChange={(event) => handleInputChange('email', event.target.value)}
+                                required
+                                placeholder="nama@instansi.go.id"
+                            />
+                            {errors.email && <p className="text-xs text-destructive">{errors.email[0]}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="employee-type">Status Pegawai</Label>
+                            <Select
+                                value={formState.employeeType}
+                                onValueChange={(value) => handleInputChange('employeeType', value)}
+                            >
+                                <SelectTrigger id="employee-type">
+                                    <SelectValue placeholder="Pilih status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ASN">ASN</SelectItem>
+                                    <SelectItem value="PPNPN">PPNPN</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            {errors.employee_type && (
+                                <p className="text-xs text-destructive">{errors.employee_type[0]}</p>
+                            )}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="nip">NIP / NRP</Label>
+                            <Input
+                                id="nip"
+                                value={formState.nip}
+                                onChange={(event) => handleInputChange('nip', event.target.value)}
+                                placeholder="198701012020011001"
+                            />
+                            {errors.nip && <p className="text-xs text-destructive">{errors.nip[0]}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="position">Jabatan</Label>
+                            <Input
+                                id="position"
+                                value={formState.position}
+                                onChange={(event) => handleInputChange('position', event.target.value)}
+                                required
+                                placeholder="Contoh: Analis SDM"
+                            />
+                            {errors.position && <p className="text-xs text-destructive">{errors.position[0]}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="leave-type">Jenis Cuti</Label>
+                            <Select
+                                value={formState.leaveTypeId}
+                                onValueChange={(value) => handleInputChange('leaveTypeId', value)}
+                            >
+                                <SelectTrigger id="leave-type">
+                                    <SelectValue placeholder="Pilih jenis cuti" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {leaveTypes.map((leaveType) => (
+                                        <SelectItem key={leaveType.id} value={String(leaveType.id)}>
+                                            {leaveType.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {errors.leave_type_id && (
+                                <p className="text-xs text-destructive">{errors.leave_type_id[0]}</p>
+                            )}
+                            {selectedLeaveType?.requires_document && (
+                                <div className="flex items-start gap-2 rounded-md border border-amber-400/60 bg-amber-100/70 p-3 text-xs text-amber-900 dark:border-amber-300/60 dark:bg-amber-900/20 dark:text-amber-100">
+                                    <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+                                    Lampiran bukti wajib untuk jenis cuti ini.
+                                </div>
+                            )}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="start-date">Mulai Cuti</Label>
+                            <Input
+                                id="start-date"
+                                type="date"
+                                value={formState.startDate}
+                                onChange={(event) => handleInputChange('startDate', event.target.value)}
+                                required
+                            />
+                            {errors.start_date && <p className="text-xs text-destructive">{errors.start_date[0]}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="end-date">Selesai Cuti</Label>
+                            <Input
+                                id="end-date"
+                                type="date"
+                                min={formState.startDate || undefined}
+                                value={formState.endDate}
+                                onChange={(event) => handleInputChange('endDate', event.target.value)}
+                                required
+                            />
+                            {errors.end_date && <p className="text-xs text-destructive">{errors.end_date[0]}</p>}
+                            {formState.startDate && formState.endDate && (
+                                <p className="text-xs text-muted-foreground">
+                                    {formatDateRange(formState.startDate, formState.endDate)} · {workingDays} hari kerja
+                                </p>
+                            )}
+                        </div>
+                        <div className="md:col-span-2 space-y-2">
+                            <Label htmlFor="reason">Alasan Cuti</Label>
+                            <textarea
+                                id="reason"
+                                value={formState.reason}
+                                onChange={(event) => handleInputChange('reason', event.target.value)}
+                                required
+                                className="min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                                placeholder="Jelaskan alasan cuti dan rencana serah terima tugas."
+                            />
+                            {errors.reason && <p className="text-xs text-destructive">{errors.reason[0]}</p>}
+                        </div>
+                        <div className="md:col-span-2 space-y-2">
+                            <Label htmlFor="address">Alamat Selama Cuti</Label>
+                            <textarea
+                                id="address"
+                                value={formState.addressDuringLeave}
+                                onChange={(event) => handleInputChange('addressDuringLeave', event.target.value)}
+                                required
+                                className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                                placeholder="Alamat lengkap yang dapat dihubungi selama cuti"
+                            />
+                            {errors.address_during_leave && (
+                                <p className="text-xs text-destructive">{errors.address_during_leave[0]}</p>
+                            )}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="contact-phone">Nomor Telepon</Label>
+                            <Input
+                                id="contact-phone"
+                                value={formState.contactPhone}
+                                onChange={(event) => handleInputChange('contactPhone', event.target.value)}
+                                required
+                                placeholder="08xxxxxxxxxx"
+                            />
+                            {errors.contact_phone && (
+                                <p className="text-xs text-destructive">{errors.contact_phone[0]}</p>
+                            )}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="attachment">Lampiran Bukti</Label>
+                            <Input
+                                id="attachment"
+                                type="file"
+                                accept="application/pdf,image/jpeg,image/png"
+                                onChange={(event) => handleInputChange('attachment', event.target.files?.[0] ?? null)}
+                            />
+                            {errors.attachment && <p className="text-xs text-destructive">{errors.attachment[0]}</p>}
+                        </div>
+                        {selectedBalance && (
+                            <div className="md:col-span-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-primary-900 dark:border-primary/40 dark:bg-primary/10 dark:text-primary-200">
+                                Sisa saldo cuti {selectedLeaveType?.name ?? ''}: {selectedBalance.remaining.toLocaleString('id-ID')}
+                                {' '}hari kerja.
+                            </div>
+                        )}
+                    </CardContent>
+                    <CardFooter className="flex flex-col gap-3 border-t border-sidebar-border/50 bg-muted/30 p-4 text-sm text-muted-foreground dark:border-sidebar-border/70 dark:bg-neutral-900/30">
+                        <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
+                            <span>Durasi pengajuan</span>
+                            <span className="font-medium text-foreground">{workingDays} hari kerja</span>
+                        </div>
+                        {selectedLeaveType?.requires_document && (
+                            <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
+                                <FileWarning className="h-4 w-4" aria-hidden="true" /> Pastikan lampiran bukti telah sesuai.
+                            </div>
+                        )}
+                        <Button type="submit" disabled={submissionState === 'loading'} className="self-end">
+                            {submissionState === 'loading' ? 'Mengirim...' : 'Kirim Permohonan'}
+                        </Button>
+                        {feedbackMessage && (
+                            <p
+                                role="status"
+                                className={cn('text-sm', submissionState === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive')}
+                            >
+                                {feedbackMessage}
+                            </p>
+                        )}
+                        {conflictSuggestion && (
+                            <div className="rounded-md border border-amber-400 bg-amber-100 p-3 text-xs text-amber-900 dark:border-amber-300/60 dark:bg-amber-900/30 dark:text-amber-100">
+                                Sistem menyarankan jadwal alternatif mulai {conflictSuggestion.start_date ?? '-'} hingga {conflictSuggestion.end_date ?? '-' }.
+                            </div>
+                        )}
+                    </CardFooter>
+                </Card>
+            </form>
+
+            {submittedRequest && (
+                <Card className="border border-primary/30 bg-primary/5 dark:border-primary/40 dark:bg-primary/10">
+                    <CardHeader>
+                        <CardTitle className="text-base">Ringkasan Permohonan</CardTitle>
+                        <CardDescription>
+                            Data berikut tercatat sebagai permohonan resmi dan sedang menunggu persetujuan SDM.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="grid gap-3 text-sm">
                         <div className="grid gap-1">
+                            <span className="font-semibold text-foreground">Status</span>
+                            <span className="text-muted-foreground">{submittedRequest.status}</span>
+                        </div>
+                        <div className="grid gap-1">
                             <span className="font-semibold text-foreground">Jenis Cuti</span>
-                            <span className="text-muted-foreground">
-                                {LEAVE_POLICIES.find((policy) => policy.code === draftPreview.leaveType)?.name ?? draftPreview.leaveType}
-                            </span>
+                            <span className="text-muted-foreground">{submittedRequest.leave_type?.name ?? '-'}</span>
                         </div>
                         <div className="grid gap-1">
                             <span className="font-semibold text-foreground">Periode</span>
                             <span className="text-muted-foreground">
-                                {draftPreview.startDate && draftPreview.endDate
-                                    ? `${formatDateRange(draftPreview.startDate, draftPreview.endDate)} (${draftPreview.workingDays} hari kerja)`
-                                    : 'Belum ditentukan'}
+                                {submittedRequest.start_date && submittedRequest.end_date
+                                    ? `${formatDateRange(submittedRequest.start_date, submittedRequest.end_date)} · ${submittedRequest.duration} hari`
+                                    : '-'}
                             </span>
                         </div>
                         <div className="grid gap-1">
-                            <span className="font-semibold text-foreground">Alasan</span>
-                            <span className="text-muted-foreground whitespace-pre-wrap">
-                                {draftPreview.reason || 'Belum diisi'}
-                            </span>
-                        </div>
-                        <div className="grid gap-1">
-                            <span className="font-semibold text-foreground">Lampiran</span>
+                            <span className="font-semibold text-foreground">Alamat Selama Cuti</span>
                             <span className="text-muted-foreground">
-                                {draftPreview.attachments.length > 0
-                                    ? `${draftPreview.attachments.length} file terpilih`
-                                    : 'Tidak ada lampiran'}
+                                {submittedRequest.contact.address_during_leave ?? '-'}
                             </span>
                         </div>
-                        <div className="grid gap-2 rounded-lg border border-primary/30 bg-primary/10 p-3 text-xs text-primary">
-                            <div className="flex flex-wrap items-center justify-between gap-2 text-foreground">
-                                <span className="font-semibold">Draft Surat Permohonan (.DOC)</span>
-                                {docPreviewUrl ? (
-                                    <Button
-                                        asChild
-                                        size="sm"
-                                        className="bg-primary text-primary-foreground hover:bg-primary/90"
-                                    >
-                                        <a href={docPreviewUrl} download={buildDocFileName(draftPreview)}>
-                                            <FileDown className="h-3.5 w-3.5" /> Unduh Draft
-                                        </a>
-                                    </Button>
-                                ) : (
-                                    <span className="text-xs text-muted-foreground">Menyiapkan berkas .DOC...</span>
-                                )}
+                        <div className="grid gap-1">
+                            <span className="font-semibold text-foreground">Nomor Kontak</span>
+                            <span className="text-muted-foreground">
+                                {submittedRequest.contact.contact_phone ?? '-'}
+                            </span>
+                        </div>
+                        {submittedRequest.document.downloadable && submittedRequest.document.url && (
+                            <div className="mt-2 flex items-center gap-3">
+                                <Button asChild size="sm" className="gap-2">
+                                    <a href={submittedRequest.document.url} target="_blank" rel="noreferrer">
+                                        <Download className="h-4 w-4" /> Unduh Formulir PDF
+                                    </a>
+                                </Button>
+                                <span className="text-xs text-muted-foreground">
+                                    Hanya dapat diakses oleh SDM/Admin/Kepala Kantor.
+                                </span>
                             </div>
-                            <p className="text-muted-foreground">
-                                Dokumen ini akan diteruskan ke SDM Admin dan Kepala Kantor untuk proses verifikasi dan persetujuan.
-                            </p>
-                        </div>
-                        <Separator />
-                        <p className="text-xs text-muted-foreground">
-                            Pastikan kembali saldo cuti mencukupi. Sistem akan memblokir pengajuan jika saldo kurang atau melanggar blackout period.
-                        </p>
-                    </CardContent>
-                    <CardFooter className="flex flex-col gap-3 border-t border-primary/20 bg-primary/5 p-4 text-sm dark:border-primary/30 dark:bg-primary/20">
-                        {submissionMessage && (
-                            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300" role="status" aria-live="polite">
-                                {submissionMessage}
-                            </p>
                         )}
-                        <div className="flex flex-wrap items-center justify-end gap-2">
-                            <Button variant="ghost" onClick={handleEditDraft} disabled={submissionState === 'submitting'}>
-                                Edit Draft
-                            </Button>
-                            <Button onClick={handleFinalizeSubmission} disabled={disableSubmitButton} className="gap-2">
-                                <CalendarCheck2 className="h-4 w-4" /> {submitButtonLabel}
-                            </Button>
-                        </div>
+                    </CardContent>
+                    <CardFooter>
+                        <p className="text-xs text-muted-foreground">
+                            Salinan formulir juga tersedia di menu detail permohonan untuk keperluan monitoring persetujuan.
+                        </p>
                     </CardFooter>
                 </Card>
             )}
-        </form>
+        </div>
     );
 }

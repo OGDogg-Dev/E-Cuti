@@ -50,6 +50,7 @@ class HandleInertiaRequests extends Middleware
         $canManageApprovals = $gate ? $gate->allows('view-approval-inbox') : false;
         $canViewLeaveRequests = $gate ? $gate->allows('viewAny', LeaveRequest::class) : false;
         $canDownloadAttachments = $gate ? $gate->allows('download-leave-attachments') : false;
+        $canDownloadDocuments = $gate ? $gate->allows('download-leave-documents') : false;
 
         $abilities = [
             'viewLeaveRequests' => $canViewLeaveRequests,
@@ -59,7 +60,7 @@ class HandleInertiaRequests extends Middleware
             'downloadLeaveAttachments' => $canDownloadAttachments,
             'approveLeaveRequests' => $canManageApprovals,
             'viewLeaveRequestDetail' => $canViewLeaveRequests,
-            'downloadLeaveDocuments' => $canDownloadAttachments,
+            'downloadLeaveDocuments' => $canDownloadDocuments,
         ];
 
         return [

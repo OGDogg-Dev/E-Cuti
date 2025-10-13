@@ -35,6 +35,9 @@ class LeaveRequestResource extends JsonResource
             'signature_status' => optional($this->signature_status)->value,
             'submitted_at' => optional($this->submitted_at)->toIso8601String(),
             'finalized_at' => optional($this->finalized_at)->toIso8601String(),
+            'employee' => $this->formatEmployeeMetadata(),
+            'contact' => $this->formatContactMetadata(),
+            'document' => $this->formatDocumentMetadata($request),
             'attachments' => $this->whenLoaded('attachments', function () use ($request) {
                 $user = $request->user();
 
@@ -56,6 +59,59 @@ class LeaveRequestResource extends JsonResource
                             : null,
                     ]);
             }),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function formatEmployeeMetadata(): array
+    {
+        $metadata = $this->metadata ?? [];
+
+        return [
+            'full_name' => $metadata['full_name'] ?? $this->user?->name,
+            'email' => $metadata['email'] ?? $this->user?->email,
+            'nip' => $metadata['nip'] ?? $this->user?->employee_number,
+            'position' => $metadata['position'] ?? null,
+            'employee_type' => $metadata['employee_type'] ?? null,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function formatContactMetadata(): array
+    {
+        $metadata = $this->metadata ?? [];
+
+        return [
+            'address_during_leave' => $metadata['address_during_leave'] ?? null,
+            'contact_phone' => $metadata['contact_phone'] ?? null,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function formatDocumentMetadata(Request $request): array
+    {
+        $user = $request->user();
+
+        if (! $user) {
+            return [
+                'downloadable' => false,
+                'url' => null,
+            ];
+        }
+
+        $gate = Gate::forUser($user);
+
+        $canDownload = $gate->allows('download-leave-documents', $this->resource);
+
+        return [
+            'downloadable' => $canDownload,
+            'url' => $canDownload ? route('api.leave-requests.document', $this->resource) : null,
         ];
     }
 }
