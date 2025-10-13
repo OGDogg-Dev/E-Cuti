@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -18,6 +18,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { calculateWorkingDays, formatDateRange } from '@/features/leave-requests/utils';
 import { cn } from '@/lib/utils';
 import { AlertTriangle, Download, FileWarning } from 'lucide-react';
@@ -89,9 +90,22 @@ type ConflictSuggestion = {
     end_date?: string;
 } | null;
 
+const EMPLOYEE_TYPE_LABELS: Record<string, string> = {
+    ASN: 'ASN (Aparatur Sipil Negara)',
+    PPNPN: 'PPNPN (Pegawai Pemerintah Non Pegawai Negeri)',
+};
+
 function getXsrfToken(): string | null {
     const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
     return match ? decodeURIComponent(match[1]) : null;
+}
+
+function formatEmployeeType(type?: string | null): string {
+    if (!type) {
+        return '-';
+    }
+
+    return EMPLOYEE_TYPE_LABELS[type] ?? type;
 }
 
 export function LeaveRequestForm({
@@ -133,6 +147,7 @@ export function LeaveRequestForm({
     const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
     const [submittedRequest, setSubmittedRequest] = useState<LeaveRequestResponse | null>(null);
     const [conflictSuggestion, setConflictSuggestion] = useState<ConflictSuggestion>(null);
+    const summaryRef = useRef<HTMLDivElement | null>(null);
 
     const selectedLeaveType = useMemo(() => {
         if (!formState.leaveTypeId) {
@@ -157,6 +172,12 @@ export function LeaveRequestForm({
 
         return calculateWorkingDays(formState.startDate, formState.endDate);
     }, [formState.startDate, formState.endDate]);
+
+    useEffect(() => {
+        if (submissionState === 'success' && summaryRef.current) {
+            summaryRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, [submissionState]);
 
     function handleInputChange(key: keyof typeof formState, value: string | File | null) {
         setFormState((previous) => ({
@@ -495,7 +516,7 @@ export function LeaveRequestForm({
                         )}
                         {conflictSuggestion && (
                             <div className="rounded-md border border-amber-400 bg-amber-100 p-3 text-xs text-amber-900 dark:border-amber-300/60 dark:bg-amber-900/30 dark:text-amber-100">
-                                Sistem menyarankan jadwal alternatif mulai {conflictSuggestion.start_date ?? '-'} hingga {conflictSuggestion.end_date ?? '-' }.
+                                Sistem menyarankan jadwal alternatif mulai {conflictSuggestion.start_date ?? '-'} hingga {conflictSuggestion.end_date ?? '-'}.
                             </div>
                         )}
                     </CardFooter>
@@ -503,61 +524,101 @@ export function LeaveRequestForm({
             </form>
 
             {submittedRequest && (
-                <Card className="border border-primary/30 bg-primary/5 dark:border-primary/40 dark:bg-primary/10">
-                    <CardHeader>
-                        <CardTitle className="text-base">Ringkasan Permohonan</CardTitle>
-                        <CardDescription>
-                            Data berikut tercatat sebagai permohonan resmi dan sedang menunggu persetujuan SDM.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid gap-3 text-sm">
-                        <div className="grid gap-1">
-                            <span className="font-semibold text-foreground">Status</span>
-                            <span className="text-muted-foreground">{submittedRequest.status}</span>
-                        </div>
-                        <div className="grid gap-1">
-                            <span className="font-semibold text-foreground">Jenis Cuti</span>
-                            <span className="text-muted-foreground">{submittedRequest.leave_type?.name ?? '-'}</span>
-                        </div>
-                        <div className="grid gap-1">
-                            <span className="font-semibold text-foreground">Periode</span>
-                            <span className="text-muted-foreground">
-                                {submittedRequest.start_date && submittedRequest.end_date
-                                    ? `${formatDateRange(submittedRequest.start_date, submittedRequest.end_date)} · ${submittedRequest.duration} hari`
-                                    : '-'}
-                            </span>
-                        </div>
-                        <div className="grid gap-1">
-                            <span className="font-semibold text-foreground">Alamat Selama Cuti</span>
-                            <span className="text-muted-foreground">
-                                {submittedRequest.contact.address_during_leave ?? '-'}
-                            </span>
-                        </div>
-                        <div className="grid gap-1">
-                            <span className="font-semibold text-foreground">Nomor Kontak</span>
-                            <span className="text-muted-foreground">
-                                {submittedRequest.contact.contact_phone ?? '-'}
-                            </span>
-                        </div>
-                        {submittedRequest.document.downloadable && submittedRequest.document.url && (
-                            <div className="mt-2 flex items-center gap-3">
-                                <Button asChild size="sm" className="gap-2">
-                                    <a href={submittedRequest.document.url} target="_blank" rel="noreferrer">
-                                        <Download className="h-4 w-4" /> Unduh Formulir PDF
-                                    </a>
-                                </Button>
-                                <span className="text-xs text-muted-foreground">
-                                    Hanya dapat diakses oleh SDM/Admin/Kepala Kantor.
+                <div ref={summaryRef}>
+                    <Card className="border border-primary/30 bg-primary/5 dark:border-primary/40 dark:bg-primary/10">
+                        <CardHeader>
+                            <CardTitle className="text-base">Review Permohonan Cuti</CardTitle>
+                            <CardDescription>
+                                Simak kembali detail yang terekam di sistem sebelum menunggu persetujuan berjenjang.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid gap-4 text-sm">
+                            <div className="grid gap-1">
+                                <span className="font-semibold text-foreground">Status</span>
+                                <span className="text-muted-foreground">{submittedRequest.status}</span>
+                            </div>
+                            <div className="grid gap-1">
+                                <span className="font-semibold text-foreground">Jenis Cuti</span>
+                                <span className="text-muted-foreground">{submittedRequest.leave_type?.name ?? '-'}</span>
+                            </div>
+                            <div className="grid gap-1">
+                                <span className="font-semibold text-foreground">Periode</span>
+                                <span className="text-muted-foreground">
+                                    {submittedRequest.start_date && submittedRequest.end_date
+                                        ? `${formatDateRange(submittedRequest.start_date, submittedRequest.end_date)} · ${submittedRequest.duration} hari`
+                                        : '-'}
                                 </span>
                             </div>
-                        )}
-                    </CardContent>
-                    <CardFooter>
-                        <p className="text-xs text-muted-foreground">
-                            Salinan formulir juga tersedia di menu detail permohonan untuk keperluan monitoring persetujuan.
-                        </p>
-                    </CardFooter>
-                </Card>
+                            <Separator className="my-2" />
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="grid gap-3">
+                                    <span className="font-semibold text-foreground">Data Pegawai</span>
+                                    <dl className="grid gap-2 text-sm">
+                                        <div className="grid gap-0.5">
+                                            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Nama Lengkap</dt>
+                                            <dd className="text-foreground">{submittedRequest.employee.full_name ?? '-'}</dd>
+                                        </div>
+                                        <div className="grid gap-0.5">
+                                            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Email</dt>
+                                            <dd className="text-foreground">{submittedRequest.employee.email ?? '-'}</dd>
+                                        </div>
+                                        <div className="grid gap-0.5">
+                                            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Status Pegawai</dt>
+                                            <dd className="text-foreground">{formatEmployeeType(submittedRequest.employee.employee_type)}</dd>
+                                        </div>
+                                        <div className="grid gap-0.5">
+                                            <dt className="text-xs uppercase tracking-wide text-muted-foreground">NIP / NRP</dt>
+                                            <dd className="text-foreground">{submittedRequest.employee.nip ?? '-'}</dd>
+                                        </div>
+                                        <div className="grid gap-0.5">
+                                            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Jabatan</dt>
+                                            <dd className="text-foreground">{submittedRequest.employee.position ?? '-'}</dd>
+                                        </div>
+                                    </dl>
+                                </div>
+                                <div className="grid gap-3">
+                                    <span className="font-semibold text-foreground">Kontak Selama Menjalankan Cuti</span>
+                                    <dl className="grid gap-2 text-sm">
+                                        <div className="grid gap-0.5">
+                                            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Alamat</dt>
+                                            <dd className="text-foreground whitespace-pre-line">
+                                                {submittedRequest.contact.address_during_leave ?? '-'}
+                                            </dd>
+                                        </div>
+                                        <div className="grid gap-0.5">
+                                            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Nomor Telepon</dt>
+                                            <dd className="text-foreground">{submittedRequest.contact.contact_phone ?? '-'}</dd>
+                                        </div>
+                                    </dl>
+                                </div>
+                            </div>
+                            <Separator className="my-2" />
+                            <div className="grid gap-1">
+                                <span className="font-semibold text-foreground">Alasan Cuti</span>
+                                <p className="rounded-md border border-primary/20 bg-primary/10 p-3 text-muted-foreground">
+                                    {submittedRequest.reason}
+                                </p>
+                            </div>
+                            {submittedRequest.document.downloadable && submittedRequest.document.url && (
+                                <div className="mt-2 flex flex-wrap items-center gap-3">
+                                    <Button asChild size="sm" className="gap-2">
+                                        <a href={submittedRequest.document.url} target="_blank" rel="noreferrer">
+                                            <Download className="h-4 w-4" /> Unduh Formulir PDF
+                                        </a>
+                                    </Button>
+                                    <span className="text-xs text-muted-foreground">
+                                        Hanya dapat diakses oleh SDM/Admin/Kepala Kantor.
+                                    </span>
+                                </div>
+                            )}
+                        </CardContent>
+                        <CardFooter>
+                            <p className="text-xs text-muted-foreground">
+                                Salinan formulir juga tersedia di menu detail permohonan untuk monitoring proses persetujuan.
+                            </p>
+                        </CardFooter>
+                    </Card>
+                </div>
             )}
         </div>
     );
