@@ -82,6 +82,7 @@ export interface LeaveRequest {
     blackoutViolation: boolean;
     notes?: string;
     attachments?: LeaveRequestAttachment[];
+    document?: LeaveRequestDocument;
 }
 
 export interface LeaveRequestAttachment {
@@ -90,6 +91,14 @@ export interface LeaveRequestAttachment {
     size: number;
     url?: string | null;
     downloadable?: boolean;
+}
+
+export interface LeaveRequestDocument {
+    filename: string;
+    url?: string | null;
+    generatedAt?: string;
+    format: 'PDF' | 'DOCX';
+    size?: number;
 }
 
 export interface LeaveRequestFilters {
