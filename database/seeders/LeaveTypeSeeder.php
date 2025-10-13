@@ -46,7 +46,7 @@ class LeaveTypeSeeder extends Seeder
                 [
                     'name' => $type['name'],
                     'requires_document' => $type['requires_document'],
-                    'default_quota_days' => 12,
+                    'default_quota_days' => $type['code'] === 'AL' ? 12 : null,
                     'allow_half_day' => $type['allow_half_day'],
                     'allow_hourly' => false,
                     'allow_carry_over' => $type['allow_carry_over'],

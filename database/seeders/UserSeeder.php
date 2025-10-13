@@ -20,6 +20,8 @@ class UserSeeder extends Seeder
         $leaveTypes = LeaveType::pluck('id', 'code');
         $currentYear = Carbon::now()->year;
 
+        $sharedQuotaAnchorCode = 'AL';
+
         $users = [
             [
                 'name' => 'Raka Aditya',
@@ -98,9 +100,12 @@ class UserSeeder extends Seeder
             foreach ($leaveTypes as $code => $leaveTypeId) {
                 $overrides = $userData['balance_overrides'][$code] ?? [];
 
-                $carryOverExpiry = $overrides['carry_over_expires_at'] ?? ($code === 'AL'
+                $carryOverExpiry = $overrides['carry_over_expires_at'] ?? ($code === $sharedQuotaAnchorCode
                     ? Carbon::create($currentYear, 3, 31)
                     : null);
+
+                $openingBalance = $overrides['opening_balance'] ?? ($code === $sharedQuotaAnchorCode ? 12 : 0);
+                $carryOverBalance = $overrides['carry_over_balance'] ?? 0;
 
                 LeaveBalance::updateOrCreate(
                     [
@@ -109,14 +114,16 @@ class UserSeeder extends Seeder
                         'year' => $currentYear,
                     ],
                     [
-                        'opening_balance' => 12,
-                        'carry_over_balance' => $overrides['carry_over_balance'] ?? 0,
+                        'opening_balance' => $openingBalance,
+                        'carry_over_balance' => $carryOverBalance,
                         'used_balance' => $overrides['used_balance'] ?? 0,
                         'adjusted_balance' => $overrides['adjusted_balance'] ?? 0,
                         'carry_over_expires_at' => $carryOverExpiry,
                         'audit_trail' => [
                             'seeded_at' => Carbon::now()->toDateTimeString(),
-                            'notes' => 'Saldo awal e-Cuti dengan kuota lintas jenis 12 hari',
+                            'notes' => $code === $sharedQuotaAnchorCode
+                                ? 'Saldo awal e-Cuti lintas jenis 12 hari'
+                                : 'Menggunakan kuota cuti bersama lintas jenis',
                         ],
                     ],
                 );

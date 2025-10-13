@@ -23,8 +23,15 @@ type LeaveRequestCreatePageProps = {
         leave_type_id: number;
         leave_type_name: string | null;
         remaining: number;
+        used: number;
         year: number;
     }>;
+    sharedQuota?: {
+        year: number;
+        total: number;
+        used: number;
+        remaining: number;
+    } | null;
     profile: {
         name: string;
         email: string;
@@ -33,7 +40,7 @@ type LeaveRequestCreatePageProps = {
     };
 };
 
-export default function LeaveRequestCreatePage({ leaveTypes, leaveBalances, profile }: LeaveRequestCreatePageProps) {
+export default function LeaveRequestCreatePage({ leaveTypes, leaveBalances, sharedQuota, profile }: LeaveRequestCreatePageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Ajukan Cuti" />
@@ -45,7 +52,12 @@ export default function LeaveRequestCreatePage({ leaveTypes, leaveBalances, prof
                     </p>
                 </div>
 
-                <LeaveRequestForm leaveTypes={leaveTypes} leaveBalances={leaveBalances} profile={profile} />
+                <LeaveRequestForm
+                    leaveTypes={leaveTypes}
+                    leaveBalances={leaveBalances}
+                    sharedQuota={sharedQuota ?? null}
+                    profile={profile}
+                />
             </div>
         </AppLayout>
     );
