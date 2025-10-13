@@ -1,8 +1,11 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { AlarmClock, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { leaveRequestDetail } from '@/routes';
+import { Link } from '@inertiajs/react';
+import { AlarmClock, AlertTriangle, Check, CheckCircle2, Eye, FileDown, Paperclip } from 'lucide-react';
 
 import { LeaveRequestStatusBadge } from '@/features/leave-requests/components/leave-request-status-badge';
 import { isSlaBreached } from '@/features/leave-requests/utils';
@@ -11,6 +14,12 @@ import { type LeaveRequest } from '@/features/leave-requests/types';
 interface ApprovalQueueTableProps {
     requests: LeaveRequest[];
     className?: string;
+    abilities?: {
+        canApprove: boolean;
+        canViewDetail: boolean;
+        canDownloadDocument: boolean;
+        canDownloadAttachments: boolean;
+    };
 }
 
 function formatDateTime(dateString: string) {
@@ -29,7 +38,16 @@ function formatDateTime(dateString: string) {
     }).format(date);
 }
 
-export function ApprovalQueueTable({ requests, className }: ApprovalQueueTableProps) {
+export function ApprovalQueueTable({
+    requests,
+    className,
+    abilities = {
+        canApprove: false,
+        canViewDetail: false,
+        canDownloadDocument: false,
+        canDownloadAttachments: false,
+    },
+}: ApprovalQueueTableProps) {
     const now = new Date();
     const slaBreached = requests.filter((request) => isSlaBreached(request, now)).length;
     const delegated = requests.filter((request) =>
@@ -101,6 +119,7 @@ export function ApprovalQueueTable({ requests, className }: ApprovalQueueTablePr
                                     <th className="px-4 py-3">SLA</th>
                                     <th className="px-4 py-3">Delegasi</th>
                                     <th className="px-4 py-3">Catatan</th>
+                                    <th className="px-4 py-3 text-right">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border/70">
@@ -109,6 +128,14 @@ export function ApprovalQueueTable({ requests, className }: ApprovalQueueTablePr
                                         (approval) => approval.status === 'PENDING',
                                     );
                                     const slaWarning = isSlaBreached(request, now);
+                                    const firstDownloadableAttachment = request.attachments?.find(
+                                        (attachment) => attachment.downloadable && attachment.url,
+                                    );
+                                    const hasDocument = abilities.canDownloadDocument && Boolean(request.document?.url);
+                                    const hasAttachments =
+                                        abilities.canDownloadAttachments && Boolean(firstDownloadableAttachment?.url);
+                                    const hasActions =
+                                        abilities.canApprove || abilities.canViewDetail || hasDocument || hasAttachments;
                                     return (
                                         <tr key={request.id} className="bg-background">
                                             <td className="px-4 py-3">
@@ -152,6 +179,52 @@ export function ApprovalQueueTable({ requests, className }: ApprovalQueueTablePr
                                                 {request.thresholdImpact.level !== 'OK'
                                                     ? request.thresholdImpact.message
                                                     : request.notes || '—'}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                {hasActions ? (
+                                                    <div className="flex flex-wrap items-center justify-end gap-2">
+                                                        {abilities.canApprove && (
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                className="bg-emerald-600 text-white hover:bg-emerald-600/90"
+                                                                onClick={() =>
+                                                                    alert(
+                                                                        `Permohonan ${request.shortCode} siap disetujui. Implementasi produksi akan membuka modal persetujuan dengan catatan dan saldo terbaru.`,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Check className="h-3.5 w-3.5" /> Setujui
+                                                            </Button>
+                                                        )}
+                                                        {abilities.canViewDetail && (
+                                                            <Button asChild variant="outline" size="sm">
+                                                                <Link href={leaveRequestDetail(request.id).url}>
+                                                                    <Eye className="h-3.5 w-3.5" /> Detail
+                                                                </Link>
+                                                            </Button>
+                                                        )}
+                                                        {hasDocument && request.document?.url && (
+                                                            <Button asChild variant="outline" size="sm">
+                                                                <a href={request.document.url} download={request.document.filename}>
+                                                                    <FileDown className="h-3.5 w-3.5" /> Dokumen
+                                                                </a>
+                                                            </Button>
+                                                        )}
+                                                        {hasAttachments && firstDownloadableAttachment?.url && (
+                                                            <Button asChild variant="outline" size="sm">
+                                                                <a
+                                                                    href={firstDownloadableAttachment.url}
+                                                                    download={firstDownloadableAttachment.filename}
+                                                                >
+                                                                    <Paperclip className="h-3.5 w-3.5" /> Lampiran
+                                                                </a>
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground">Tidak ada aksi</span>
+                                                )}
                                             </td>
                                         </tr>
                                     );
