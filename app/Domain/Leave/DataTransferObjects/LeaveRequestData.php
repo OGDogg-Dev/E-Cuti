@@ -18,11 +18,22 @@ class LeaveRequestData
         public readonly Carbon $endDate,
         public readonly string $reason,
         public readonly ?UploadedFile $attachment,
+        public readonly array $metadata,
     ) {
     }
 
     public static function fromRequest(StoreLeaveRequestRequest $request, User $user): self
     {
+        $metadata = [
+            'email' => $request->string('email')->toString(),
+            'employee_type' => $request->string('employee_type')->toString(),
+            'full_name' => $request->string('full_name')->toString(),
+            'nip' => $request->input('nip'),
+            'position' => $request->string('position')->toString(),
+            'address_during_leave' => $request->string('address_during_leave')->toString(),
+            'contact_phone' => $request->string('contact_phone')->toString(),
+        ];
+
         return new self(
             user: $user,
             leaveTypeId: (int) $request->input('leave_type_id'),
@@ -31,6 +42,7 @@ class LeaveRequestData
             endDate: $request->date('end_date'),
             reason: $request->string('reason')->toString(),
             attachment: $request->file('attachment'),
+            metadata: $metadata,
         );
     }
 
@@ -48,6 +60,7 @@ class LeaveRequestData
             'duration' => 0,
             'reason' => $this->reason,
             'status' => LeaveRequestStatus::DRAFT,
+            'metadata' => $this->metadata,
         ];
     }
 }

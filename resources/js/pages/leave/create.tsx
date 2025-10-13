@@ -10,7 +10,37 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Ajukan Cuti', href: leaveRequestCreate().url },
 ];
 
-export default function LeaveRequestCreatePage() {
+type LeaveRequestCreatePageProps = {
+    leaveTypes: Array<{
+        id: number;
+        code: string;
+        name: string;
+        requires_document: boolean;
+        policy_id: number | null;
+    }>;
+    leaveBalances: Array<{
+        id: number;
+        leave_type_id: number;
+        leave_type_name: string | null;
+        remaining: number;
+        used: number;
+        year: number;
+    }>;
+    sharedQuota?: {
+        year: number;
+        total: number;
+        used: number;
+        remaining: number;
+    } | null;
+    profile: {
+        name: string;
+        email: string;
+        employee_number?: string | null;
+        division?: string | null;
+    };
+};
+
+export default function LeaveRequestCreatePage({ leaveTypes, leaveBalances, sharedQuota, profile }: LeaveRequestCreatePageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Ajukan Cuti" />
@@ -22,7 +52,12 @@ export default function LeaveRequestCreatePage() {
                     </p>
                 </div>
 
-                <LeaveRequestForm />
+                <LeaveRequestForm
+                    leaveTypes={leaveTypes}
+                    leaveBalances={leaveBalances}
+                    sharedQuota={sharedQuota ?? null}
+                    profile={profile}
+                />
             </div>
         </AppLayout>
     );

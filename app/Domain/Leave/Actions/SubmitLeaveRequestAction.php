@@ -4,25 +4,25 @@ namespace App\Domain\Leave\Actions;
 
 use App\Domain\Leave\DataTransferObjects\LeaveRequestData;
 use App\Domain\Leave\Exceptions\ThresholdViolationException;
-use App\Models\LeavePolicy;
 use App\Models\LeaveRequest;
+use App\Services\Leave\LeavePolicyResolver;
 use App\Services\Leave\LeaveRequestWorkflowService;
 use App\Services\Leave\ThresholdEvaluator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 class SubmitLeaveRequestAction
 {
     public function __construct(
         private readonly LeaveRequestWorkflowService $workflowService,
         private readonly ThresholdEvaluator $thresholdEvaluator,
+        private readonly LeavePolicyResolver $policyResolver,
     ) {
     }
 
     public function execute(LeaveRequestData $data): LeaveRequest
     {
         return DB::transaction(function () use ($data) {
-            $policy = $this->resolvePolicy($data);
+            $policy = $this->policyResolver->resolve($data->user, $data->policyId, $data->leaveTypeId);
 
             $leaveRequest = new LeaveRequest($data->toModelAttributes());
 
@@ -52,25 +52,6 @@ class SubmitLeaveRequestAction
         });
     }
 
-    private function resolvePolicy(LeaveRequestData $data): LeavePolicy
-    {
-        $policy = LeavePolicy::query()
-            ->whereKey($data->policyId)
-            ->where('leave_type_id', $data->leaveTypeId)
-            ->where(function ($query) use ($data) {
-                $query->whereNull('division_id')
-                    ->orWhere('division_id', $data->user->division_id);
-            })
-            ->first();
-
-        if (! $policy) {
-            throw ValidationException::withMessages([
-                'policy_id' => 'Kebijakan cuti tidak berlaku untuk pegawai ini.',
-            ]);
-        }
-
-        return $policy;
-    }
 
     private function suggestAlternativeDates(LeaveRequest $leaveRequest): ?array
     {
