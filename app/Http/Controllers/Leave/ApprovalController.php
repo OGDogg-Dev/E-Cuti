@@ -7,6 +7,7 @@ use App\Models\LeaveRequest;
 use App\Services\Leave\LeaveRequestWorkflowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 
 class ApprovalController extends Controller
 {
@@ -16,15 +17,34 @@ class ApprovalController extends Controller
 
     public function inbox(Request $request)
     {
+        Gate::authorize('view-approval-inbox');
+
         $user = Auth::user()->loadMissing('roles');
+        $perPage = $request->integer('per_page', 15);
+
+        $allowedStatuses = $this->workflowService->allowedStatusesFor($user);
+        $allowedStages = $this->workflowService->allowedStagesFor($user);
+
+        if ($allowedStatuses === [] || $allowedStages === []) {
+            $requests = LeaveRequest::query()
+                ->whereRaw('1 = 0')
+                ->paginate($perPage);
+
+            return response()->json($requests);
+        }
 
         $requests = LeaveRequest::query()
             ->with(['leaveType', 'user', 'division'])
-            ->whereHas('approvals', function ($query) use ($user) {
+            ->whereIn('status', $allowedStatuses)
+            ->whereHas('approvals', function ($query) use ($user, $allowedStages) {
                 $query->whereNull('acted_at')
-                    ->whereIn('stage', $user->roles->pluck('name'));
+                    ->whereIn('stage', $allowedStages)
+                    ->where(function ($query) use ($user) {
+                        $query->whereNull('approver_id')
+                            ->orWhere('approver_id', $user->id);
+                    });
             })
-            ->paginate($request->integer('per_page', 15));
+            ->paginate($perPage);
 
         return response()->json($requests);
     }
@@ -37,9 +57,13 @@ class ApprovalController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
+        $user = Auth::user()->loadMissing('roles');
+
+        Gate::authorize('process-approval', [$leaveRequest, $validated['stage']]);
+
         $this->workflowService->recordDecision(
             $leaveRequest,
-            Auth::id(),
+            $user,
             $validated['stage'],
             $validated['action'],
             $validated['notes'] ?? null

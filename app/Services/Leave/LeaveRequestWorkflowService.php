@@ -8,6 +8,8 @@ use App\Enums\SignatureStatus;
 use App\Models\LeavePolicy;
 use App\Models\LeaveRequest;
 use App\Models\LeaveRequestApproval;
+use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -42,17 +44,22 @@ class LeaveRequestWorkflowService
         return $leaveRequest;
     }
 
-    public function recordDecision(LeaveRequest $leaveRequest, int $approverId, string $stage, string $action, ?string $notes = null): void
+    public function recordDecision(LeaveRequest $leaveRequest, User $user, string $stage, string $action, ?string $notes = null): void
     {
-        DB::transaction(function () use ($leaveRequest, $approverId, $stage, $action, $notes) {
+        if (! $this->userCanProcessStage($user, $leaveRequest, $stage)) {
+            throw new AuthorizationException('Anda tidak memiliki akses untuk tahap persetujuan ini.');
+        }
+
+        DB::transaction(function () use ($leaveRequest, $user, $stage, $action, $notes) {
             $approval = LeaveRequestApproval::query()
                 ->where('leave_request_id', $leaveRequest->id)
                 ->where('stage', $stage)
                 ->whereNull('acted_at')
+                ->lockForUpdate()
                 ->firstOrFail();
 
             $approval->update([
-                'approver_id' => $approverId,
+                'approver_id' => $user->getKey(),
                 'acted_at' => Carbon::now(),
                 'action' => $action,
                 'notes' => $notes,
@@ -84,10 +91,7 @@ class LeaveRequestWorkflowService
 
     public function determineServiceLevelColor(LeaveRequest $leaveRequest): string
     {
-        $policy = LeavePolicy::query()->where('leave_type_id', $leaveRequest->leave_type_id)
-            ->where(fn ($query) => $query->whereNull('division_id')->orWhere('division_id', $leaveRequest->division_id))
-            ->orderByDesc('division_id')
-            ->first();
+        $policy = $this->resolvePolicyFor($leaveRequest);
 
         if (! $policy) {
             return 'GREEN';
@@ -103,6 +107,121 @@ class LeaveRequestWorkflowService
     public function suggestAlternativeDates(Carbon $start, Carbon $end, callable $validator): ?array
     {
         return $this->workingDayCalculator->suggestAlternativeDates($start, $end, $validator);
+    }
+
+    public function allowedStagesFor(User $user): array
+    {
+        $user->loadMissing('roles');
+
+        $roles = $user->roles->pluck('name')->all();
+
+        if ($roles === []) {
+            return [];
+        }
+
+        return LeavePolicy::query()
+            ->get(['approval_matrix'])
+            ->flatMap(function (LeavePolicy $policy) use ($roles) {
+                return collect($policy->approval_matrix ?? [])
+                    ->filter(function ($stageConfig) use ($roles) {
+                        $primary = Arr::get($stageConfig, 'role');
+                        $fallback = Arr::get($stageConfig, 'fallback_role');
+
+                        return in_array($primary, $roles, true) || in_array($fallback, $roles, true);
+                    })
+                    ->pluck('stage');
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    public function allowedStatusesFor(User $user): array
+    {
+        $user->loadMissing('roles');
+
+        $roleStatuses = [
+            'division_head' => [
+                LeaveRequestStatus::WAITING_APPROVAL_KEPALA->value,
+                LeaveRequestStatus::WAITING_APPROVAL_BOTH->value,
+            ],
+            'hr_manager' => [
+                LeaveRequestStatus::WAITING_APPROVAL_SDM->value,
+                LeaveRequestStatus::WAITING_APPROVAL_BOTH->value,
+            ],
+            'super_admin' => [
+                LeaveRequestStatus::WAITING_APPROVAL_SDM->value,
+                LeaveRequestStatus::WAITING_APPROVAL_BOTH->value,
+            ],
+        ];
+
+        return $user->roles->pluck('name')
+            ->flatMap(fn (string $role) => $roleStatuses[$role] ?? [])
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    public function userCanProcessStage(User $user, LeaveRequest $leaveRequest, string $stage): bool
+    {
+        $policy = $this->resolvePolicyFor($leaveRequest);
+
+        if (! $policy) {
+            return false;
+        }
+
+        $stageConfig = collect($policy->approval_matrix ?? [])
+            ->firstWhere('stage', $stage);
+
+        if (! $stageConfig) {
+            return false;
+        }
+
+        $allowedRoles = array_values(array_filter([
+            Arr::get($stageConfig, 'role'),
+            Arr::get($stageConfig, 'fallback_role'),
+        ]));
+
+        if ($allowedRoles === []) {
+            return false;
+        }
+
+        if (! $user->hasAnyRole($allowedRoles)) {
+            return false;
+        }
+
+        $pendingApprovalQuery = $leaveRequest->approvals()
+            ->where('stage', $stage)
+            ->whereNull('acted_at')
+            ->where(function ($query) use ($user) {
+                $query->whereNull('approver_id')
+                    ->orWhere('approver_id', $user->getKey());
+            });
+
+        if (! $pendingApprovalQuery->exists()) {
+            return false;
+        }
+
+        if ($policy->flow_type === ApprovalFlowType::SERIAL) {
+            $matrix = collect($policy->approval_matrix ?? []);
+            $stageIndex = $matrix->search(fn ($config) => Arr::get($config, 'stage') === $stage);
+
+            if ($stageIndex === false) {
+                return false;
+            }
+
+            $previousStages = $matrix->take($stageIndex)->pluck('stage')->filter()->all();
+
+            if ($previousStages !== [] && $leaveRequest->approvals()
+                ->whereIn('stage', $previousStages)
+                ->whereNull('acted_at')
+                ->exists()) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function seedApprovalStages(LeaveRequest $leaveRequest, LeavePolicy $policy): void
@@ -121,6 +240,15 @@ class LeaveRequestWorkflowService
                 'sla_snapshot' => Arr::get($stageConfig, 'sla'),
             ]);
         });
+    }
+
+    private function resolvePolicyFor(LeaveRequest $leaveRequest): ?LeavePolicy
+    {
+        return LeavePolicy::query()
+            ->where('leave_type_id', $leaveRequest->leave_type_id)
+            ->where(fn ($query) => $query->whereNull('division_id')->orWhere('division_id', $leaveRequest->division_id))
+            ->orderByDesc('division_id')
+            ->first();
     }
 
     private function advanceWorkflow(LeaveRequest $leaveRequest): void
