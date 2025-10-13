@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, CalendarCheck2, ClipboardList, MailCheck } from 'lucide-react';
+import { AlertTriangle, CalendarCheck2, ClipboardList, FileDown, MailCheck } from 'lucide-react';
 
 import { LEAVE_POLICIES } from '../constants';
 import { calculateWorkingDays, formatDateRange } from '../utils';
@@ -65,9 +65,32 @@ function formatSla(hours: number) {
     return `${hours} jam`;
 }
 
+function buildDocPreviewContent(draft: LeaveRequestDraft): string {
+    const attachmentsSummary = draft.attachments.length
+        ? draft.attachments.map((file) => `• ${file.name || 'Lampiran tanpa nama'}`).join('\n')
+        : '• Tidak ada lampiran';
+
+    return `Permohonan Cuti Pegawai\n\n` +
+        `Jenis Cuti : ${draft.leaveType}\n` +
+        `Periode   : ${draft.startDate || '-'} s/d ${draft.endDate || '-'} (${draft.workingDays} hari kerja)\n` +
+        `Half-day  : ${draft.halfDay ? 'Ya' : 'Tidak'}\n` +
+        `Alasan    : ${draft.reason || '-'}\n\n` +
+        `Kontak selama cuti : ${draft.contactDuringLeave || '-'}\n` +
+        `Delegasi approver  : ${draft.delegatedApprover || '-'}\n` +
+        `Notifikasi tim     : ${draft.notifyTeam ? 'Ya' : 'Tidak'}\n\n` +
+        `Lampiran:\n${attachmentsSummary}\n` +
+        `\nGenerated otomatis dari formulir e-Cuti.`;
+}
+
+function buildDocFileName(draft: LeaveRequestDraft): string {
+    const dateSegment = draft.startDate ? draft.startDate.replace(/-/g, '') : 'draft';
+    return `permohonan-cuti-${dateSegment}.doc`;
+}
+
 export function LeaveRequestForm({ className }: LeaveRequestFormProps) {
     const [formState, setFormState] = useState<FormState>(initialState);
     const [draftPreview, setDraftPreview] = useState<LeaveRequestDraft | null>(null);
+    const [docPreviewUrl, setDocPreviewUrl] = useState<string | null>(null);
 
     const selectedPolicy = useMemo(
         () => LEAVE_POLICIES.find((policy) => policy.code === formState.leaveType),
@@ -87,6 +110,24 @@ export function LeaveRequestForm({ className }: LeaveRequestFormProps) {
         event.preventDefault();
         setDraftPreview({ ...formState, workingDays });
     }
+
+    useEffect(() => {
+        if (!draftPreview) {
+            setDocPreviewUrl(null);
+            return;
+        }
+
+        const content = buildDocPreviewContent(draftPreview);
+        const blob = new Blob([content], {
+            type: 'application/msword',
+        });
+        const url = URL.createObjectURL(blob);
+        setDocPreviewUrl(url);
+
+        return () => {
+            URL.revokeObjectURL(url);
+        };
+    }, [draftPreview]);
 
     return (
         <form
@@ -242,7 +283,15 @@ export function LeaveRequestForm({ className }: LeaveRequestFormProps) {
             </Card>
 
             <div className="flex justify-end gap-3">
-                <Button type="button" variant="outline" onClick={() => setFormState(initialState)}>
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                        setFormState(initialState);
+                        setDraftPreview(null);
+                        setDocPreviewUrl(null);
+                    }}
+                >
                     Reset Form
                 </Button>
                 <Button type="submit" className="gap-2">
@@ -286,6 +335,27 @@ export function LeaveRequestForm({ className }: LeaveRequestFormProps) {
                                     ? `${draftPreview.attachments.length} file terpilih`
                                     : 'Tidak ada lampiran'}
                             </span>
+                        </div>
+                        <div className="grid gap-2 rounded-lg border border-primary/30 bg-primary/10 p-3 text-xs text-primary">
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-foreground">
+                                <span className="font-semibold">Draft Surat Permohonan (.DOC)</span>
+                                {docPreviewUrl ? (
+                                    <Button
+                                        asChild
+                                        size="sm"
+                                        className="bg-primary text-primary-foreground hover:bg-primary/90"
+                                    >
+                                        <a href={docPreviewUrl} download={buildDocFileName(draftPreview)}>
+                                            <FileDown className="h-3.5 w-3.5" /> Unduh Draft
+                                        </a>
+                                    </Button>
+                                ) : (
+                                    <span className="text-xs text-muted-foreground">Menyiapkan berkas .DOC...</span>
+                                )}
+                            </div>
+                            <p className="text-muted-foreground">
+                                Dokumen ini akan diteruskan ke SDM Admin dan Kepala Kantor untuk proses verifikasi dan persetujuan.
+                            </p>
                         </div>
                         <Separator />
                         <p className="text-xs text-muted-foreground">

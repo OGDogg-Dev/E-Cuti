@@ -11,15 +11,18 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
 import {
     AlertTriangle,
     CalendarRange,
     Clock3,
     Download,
+    FileDown,
     FileText,
     Paperclip,
     ShieldAlert,
     UserCheck,
+    Check,
 } from 'lucide-react';
 import { useMemo } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
@@ -51,7 +54,10 @@ function formatDateTime(dateString: string) {
 export default function LeaveRequestDetailPage() {
     const page = usePage<PageProps & SharedData>();
     const { leaveRequestId, auth } = page.props;
-    const canDownloadAttachments = auth?.abilities?.downloadLeaveAttachments ?? false;
+    const abilityMap = auth?.abilities ?? {};
+    const canDownloadAttachments = abilityMap.downloadLeaveAttachments ?? false;
+    const canDownloadDocument = (abilityMap.downloadLeaveDocuments ?? false) || canDownloadAttachments;
+    const canApproveRequest = abilityMap.approveLeaveRequests ?? false;
 
     const leaveRequest = useMemo(
         () => MOCK_LEAVE_REQUESTS.find((request) => request.id === leaveRequestId) ?? null,
@@ -95,6 +101,9 @@ export default function LeaveRequestDetailPage() {
 
     const pendingApprovals = leaveRequest.approvals.filter((approval) => approval.status === 'PENDING');
     const completedApprovals = leaveRequest.approvals.filter((approval) => approval.status !== 'PENDING');
+    const firstDownloadableAttachment = leaveRequest.attachments?.find(
+        (attachment) => attachment.downloadable && attachment.url,
+    );
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -123,6 +132,12 @@ export default function LeaveRequestDetailPage() {
                                 <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">
                                     {leaveRequest.type.name}
                                 </Badge>
+                                <span>
+                                    {leaveRequest.period.workingDays} hari kerja · {formatDateRange(
+                                        leaveRequest.period.startDate,
+                                        leaveRequest.period.endDate,
+                                    )}
+                                </span>
                                 <span>Diajukan {formatDateTime(leaveRequest.submittedAt)}</span>
                             </div>
                         </div>
@@ -132,6 +147,46 @@ export default function LeaveRequestDetailPage() {
                                 <Clock3 className="h-4 w-4" />
                                 <span>SLA: {formatDateTime(leaveRequest.sla.dueAt)}</span>
                             </div>
+                            {(canApproveRequest || canDownloadDocument || (canDownloadAttachments && firstDownloadableAttachment?.url)) && (
+                                <div className="flex flex-wrap items-center justify-end gap-2">
+                                    {canApproveRequest && (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            className="bg-emerald-600 text-white hover:bg-emerald-600/90"
+                                            onClick={() =>
+                                                alert(
+                                                    'Persetujuan akan membuka formulir catatan resmi dan mengirim notifikasi ke pemohon.',
+                                                )
+                                            }
+                                        >
+                                            <Check className="h-3.5 w-3.5" /> Setujui permohonan
+                                        </Button>
+                                    )}
+                                    {canDownloadDocument && leaveRequest.document?.url && (
+                                        <Button
+                                            asChild
+                                            variant="secondary"
+                                            size="sm"
+                                            className="bg-primary/10 text-primary hover:bg-primary/20"
+                                        >
+                                            <a href={leaveRequest.document.url} download={leaveRequest.document.filename}>
+                                                <FileDown className="h-3.5 w-3.5" /> Unduh surat
+                                            </a>
+                                        </Button>
+                                    )}
+                                    {canDownloadAttachments && firstDownloadableAttachment?.url && (
+                                        <Button asChild variant="outline" size="sm">
+                                            <a
+                                                href={firstDownloadableAttachment.url}
+                                                download={firstDownloadableAttachment.filename}
+                                            >
+                                                <Paperclip className="h-3.5 w-3.5" /> Lampiran
+                                            </a>
+                                        </Button>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </CardHeader>
 
@@ -209,6 +264,8 @@ export default function LeaveRequestDetailPage() {
 
                         <Separator />
 
+                        <DocumentSection document={leaveRequest.document} canDownload={canDownloadDocument} />
+
                         <AttachmentsSection
                             attachments={leaveRequest.attachments ?? []}
                             canDownload={canDownloadAttachments}
@@ -240,6 +297,54 @@ export default function LeaveRequestDetailPage() {
                 </Card>
             </div>
         </AppLayout>
+    );
+}
+
+function DocumentSection({
+    document,
+    canDownload,
+}: {
+    document?: LeaveRequest['document'];
+    canDownload: boolean;
+}) {
+    if (!document) {
+        return null;
+    }
+
+    return (
+        <div className="space-y-3 text-sm">
+            <div className="flex items-center gap-2 text-foreground">
+                <FileText className="h-4 w-4 text-primary" />
+                <span className="font-semibold">Surat Permohonan</span>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border/60 bg-muted/30 p-3 text-sm dark:border-border/40">
+                <div className="space-y-1">
+                    <span className="font-medium text-foreground">{document.filename}</span>
+                    <span className="text-xs text-muted-foreground">
+                        {document.generatedAt ? `Dibuat ${formatDateTime(document.generatedAt)}` : 'Menunggu pembuatan'} · Format {document.format}
+                        {document.size ? ` · ${formatFileSize(document.size)}` : ''}
+                    </span>
+                </div>
+                {canDownload && document.url ? (
+                    <a
+                        href={document.url}
+                        download={document.filename}
+                        className="inline-flex items-center gap-2 rounded-md border border-primary/40 px-3 py-1 font-semibold text-primary transition hover:bg-primary/10"
+                    >
+                        <FileDown className="h-3.5 w-3.5" /> Unduh dokumen
+                    </a>
+                ) : (
+                    <span className="rounded-full bg-muted px-3 py-1 text-[11px] font-semibold text-muted-foreground">
+                        Tidak dapat diunduh
+                    </span>
+                )}
+            </div>
+            {!canDownload && (
+                <p className="text-xs text-muted-foreground">
+                    Hanya SDM/Admin dan Kepala Kantor yang berwenang untuk mengunduh surat permohonan resmi.
+                </p>
+            )}
+        </div>
     );
 }
 
