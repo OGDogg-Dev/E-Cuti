@@ -10,7 +10,29 @@ class LeaveRequestDocumentService
 {
     public function generate(LeaveRequest $leaveRequest): \Barryvdh\DomPDF\PDF
     {
-        $leaveRequest->loadMissing(['user', 'leaveType', 'division', 'attachments', 'approvals.approver']);
+        if ($leaveRequest->exists) {
+            $leaveRequest->loadMissing(['user', 'leaveType', 'division', 'attachments', 'approvals.approver']);
+        } else {
+            if (! $leaveRequest->relationLoaded('user') && $leaveRequest->user) {
+                $leaveRequest->setRelation('user', $leaveRequest->user);
+            }
+
+            if (! $leaveRequest->relationLoaded('leaveType') && $leaveRequest->leaveType) {
+                $leaveRequest->setRelation('leaveType', $leaveRequest->leaveType);
+            }
+
+            if (! $leaveRequest->relationLoaded('division') && $leaveRequest->division) {
+                $leaveRequest->setRelation('division', $leaveRequest->division);
+            }
+
+            if (! $leaveRequest->relationLoaded('attachments')) {
+                $leaveRequest->setRelation('attachments', $leaveRequest->attachments ?? collect());
+            }
+
+            if (! $leaveRequest->relationLoaded('approvals')) {
+                $leaveRequest->setRelation('approvals', $leaveRequest->approvals ?? collect());
+            }
+        }
 
         $metadata = $leaveRequest->metadata ?? [];
         $employee = [

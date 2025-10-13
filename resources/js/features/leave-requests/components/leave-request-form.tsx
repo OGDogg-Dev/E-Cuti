@@ -21,7 +21,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { calculateWorkingDays, formatDateRange } from '@/features/leave-requests/utils';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, Download, FileWarning } from 'lucide-react';
+import { AlertTriangle, Download, Eye, FileWarning } from 'lucide-react';
 
 type LeaveTypeOption = {
     id: number;
@@ -175,11 +175,17 @@ export function LeaveRequestForm({
         attachment: 'attachment',
     };
     const [errors, setErrors] = useState<ValidationErrors>({});
+    const [reviewState, setReviewState] = useState<SubmissionState>('idle');
+    const [reviewMessage, setReviewMessage] = useState<string | null>(null);
+    const [reviewData, setReviewData] = useState<LeaveRequestResponse | null>(null);
+    const [isDownloadingPreview, setIsDownloadingPreview] = useState(false);
+    const [previewDownloadError, setPreviewDownloadError] = useState<string | null>(null);
     const [submissionState, setSubmissionState] = useState<SubmissionState>('idle');
-    const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+    const [submissionMessage, setSubmissionMessage] = useState<string | null>(null);
     const [submittedRequest, setSubmittedRequest] = useState<LeaveRequestResponse | null>(null);
     const [conflictSuggestion, setConflictSuggestion] = useState<ConflictSuggestion>(null);
-    const summaryRef = useRef<HTMLDivElement | null>(null);
+    const reviewSummaryRef = useRef<HTMLDivElement | null>(null);
+    const finalSummaryRef = useRef<HTMLDivElement | null>(null);
 
     const selectedLeaveType = useMemo(() => {
         if (!formState.leaveTypeId) {
@@ -220,9 +226,17 @@ export function LeaveRequestForm({
         return calculateWorkingDays(formState.startDate, formState.endDate);
     }, [formState.startDate, formState.endDate]);
 
+    const canSubmit = reviewState === 'success' && reviewData !== null;
+
     useEffect(() => {
-        if (submissionState === 'success' && summaryRef.current) {
-            summaryRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (reviewState === 'success' && reviewSummaryRef.current) {
+            reviewSummaryRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, [reviewState]);
+
+    useEffect(() => {
+        if (submissionState === 'success' && finalSummaryRef.current) {
+            finalSummaryRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     }, [submissionState]);
 
@@ -235,18 +249,112 @@ export function LeaveRequestForm({
         if (errors[mappedKey]) {
             setErrors((prev) => ({ ...prev, [mappedKey]: [] }));
         }
-        setFeedbackMessage(null);
+        setReviewState('idle');
+        setReviewMessage(null);
+        setReviewData(null);
+        setPreviewDownloadError(null);
+        setSubmissionMessage(null);
         setConflictSuggestion(null);
         setSubmissionState('idle');
+    }
+
+    function buildFormData(): FormData {
+        const formData = new FormData();
+        formData.append('email', formState.email);
+        formData.append('employee_type', formState.employeeType);
+        formData.append('full_name', formState.fullName);
+        if (formState.nip) {
+            formData.append('nip', formState.nip);
+        }
+        formData.append('position', formState.position);
+        if (selectedLeaveType?.id) {
+            formData.append('leave_type_id', String(selectedLeaveType.id));
+        }
+        if (selectedLeaveType?.policy_id) {
+            formData.append('policy_id', String(selectedLeaveType.policy_id));
+        }
+        formData.append('start_date', formState.startDate);
+        formData.append('end_date', formState.endDate);
+        formData.append('reason', formState.reason);
+        formData.append('address_during_leave', formState.addressDuringLeave);
+        formData.append('contact_phone', formState.contactPhone);
+        if (formState.attachment) {
+            formData.append('attachment', formState.attachment);
+        }
+
+        return formData;
+    }
+
+    async function handleReview() {
+        setReviewState('loading');
+        setReviewMessage(null);
+        setSubmissionMessage(null);
+        setPreviewDownloadError(null);
+        setReviewData(null);
+        setErrors({});
+
+        if (!selectedLeaveType || !selectedLeaveType.policy_id) {
+            setReviewState('error');
+            setErrors({
+                leave_type_id: ['Kebijakan cuti tidak tersedia untuk jenis cuti ini.'],
+            });
+            return;
+        }
+
+        const formData = buildFormData();
+
+        try {
+            const xsrfToken = await ensureCsrfCookie();
+            const response = await fetch('/api/leave-requests/review', {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(xsrfToken ? { 'X-XSRF-TOKEN': xsrfToken, 'X-CSRF-TOKEN': xsrfToken } : {}),
+                },
+                credentials: 'include',
+                body: formData,
+            });
+
+            if (response.ok) {
+                const payload = (await response.json()) as LeaveRequestResponse;
+                setReviewData(payload);
+                setReviewMessage('Review berhasil disiapkan. Silakan unduh formulir sebelum mengirim permohonan.');
+                setReviewState('success');
+                return;
+            }
+
+            if (response.status === 422) {
+                const payload = await response.json();
+                setErrors(payload.errors ?? {});
+                setReviewMessage('Beberapa data belum valid. Mohon periksa kembali formulir.');
+                setReviewState('error');
+                return;
+            }
+
+            const text = await response.text();
+            setReviewMessage(text || 'Gagal menyiapkan review permohonan.');
+            setReviewState('error');
+        } catch (error) {
+            console.error(error);
+            setReviewMessage('Gagal terhubung ke server saat menyiapkan review.');
+            setReviewState('error');
+        }
     }
 
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
         setSubmissionState('loading');
-        setFeedbackMessage(null);
+        setSubmissionMessage(null);
         setErrors({});
         setSubmittedRequest(null);
         setConflictSuggestion(null);
+
+        if (!reviewData || reviewState !== 'success') {
+            setSubmissionState('error');
+            setSubmissionMessage('Silakan review permohonan dan unduh formulir terlebih dahulu.');
+            return;
+        }
 
         if (!selectedLeaveType || !selectedLeaveType.policy_id) {
             setSubmissionState('error');
@@ -256,24 +364,7 @@ export function LeaveRequestForm({
             return;
         }
 
-        const formData = new FormData();
-        formData.append('email', formState.email);
-        formData.append('employee_type', formState.employeeType);
-        formData.append('full_name', formState.fullName);
-        if (formState.nip) {
-            formData.append('nip', formState.nip);
-        }
-        formData.append('position', formState.position);
-        formData.append('leave_type_id', String(selectedLeaveType.id));
-        formData.append('policy_id', String(selectedLeaveType.policy_id));
-        formData.append('start_date', formState.startDate);
-        formData.append('end_date', formState.endDate);
-        formData.append('reason', formState.reason);
-        formData.append('address_during_leave', formState.addressDuringLeave);
-        formData.append('contact_phone', formState.contactPhone);
-        if (formState.attachment) {
-            formData.append('attachment', formState.attachment);
-        }
+        const formData = buildFormData();
 
         try {
             const xsrfToken = await ensureCsrfCookie();
@@ -291,14 +382,14 @@ export function LeaveRequestForm({
             if (response.status === 201) {
                 const payload = (await response.json()) as LeaveRequestResponse;
                 setSubmittedRequest(payload);
-                setFeedbackMessage('Permohonan cuti berhasil dikirim dan menunggu validasi SDM.');
+                setSubmissionMessage('Permohonan cuti berhasil dikirim dan menunggu validasi SDM.');
                 setSubmissionState('success');
                 return;
             }
 
             if (response.status === 409) {
                 const payload = await response.json();
-                setFeedbackMessage(payload.message ?? 'Permohonan bertentangan dengan kebijakan cuti.');
+                setSubmissionMessage(payload.message ?? 'Permohonan bertentangan dengan kebijakan cuti.');
                 setConflictSuggestion(payload.suggested_dates ?? null);
                 setSubmissionState('error');
                 return;
@@ -307,18 +398,74 @@ export function LeaveRequestForm({
             if (response.status === 422) {
                 const payload = await response.json();
                 setErrors(payload.errors ?? {});
-                setFeedbackMessage('Beberapa data belum valid. Mohon periksa kembali formulir.');
+                setSubmissionMessage('Beberapa data belum valid. Mohon periksa kembali formulir.');
                 setSubmissionState('error');
                 return;
             }
 
             const text = await response.text();
-            setFeedbackMessage(text || 'Terjadi kesalahan tidak terduga saat mengirim permohonan.');
+            setSubmissionMessage(text || 'Terjadi kesalahan tidak terduga saat mengirim permohonan.');
             setSubmissionState('error');
         } catch (error) {
             console.error(error);
-            setFeedbackMessage('Gagal mengirim permohonan karena masalah jaringan.');
+            setSubmissionMessage('Gagal mengirim permohonan karena masalah jaringan.');
             setSubmissionState('error');
+        }
+    }
+
+    async function handleDownloadPreview() {
+        if (!reviewData) {
+            setPreviewDownloadError('Siapkan review permohonan sebelum mengunduh formulir.');
+            return;
+        }
+
+        setIsDownloadingPreview(true);
+        setPreviewDownloadError(null);
+
+        const formData = buildFormData();
+
+        try {
+            const xsrfToken = await ensureCsrfCookie();
+            const response = await fetch('/api/leave-requests/review/document', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(xsrfToken ? { 'X-XSRF-TOKEN': xsrfToken, 'X-CSRF-TOKEN': xsrfToken } : {}),
+                },
+                credentials: 'include',
+                body: formData,
+            });
+
+            if (response.status === 422) {
+                const payload = await response.json();
+                setErrors(payload.errors ?? {});
+                setReviewData(null);
+                setReviewState('error');
+                setReviewMessage('Beberapa data belum valid. Mohon lakukan review ulang sebelum mengunduh formulir.');
+                setPreviewDownloadError('Beberapa data belum valid sehingga formulir tidak dapat diunduh.');
+                return;
+            }
+
+            if (!response.ok) {
+                const text = await response.text();
+                setPreviewDownloadError(text || 'Gagal menyiapkan dokumen review.');
+                return;
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `preview-formulir-cuti-${formState.startDate || 'terkini'}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error(error);
+            setPreviewDownloadError('Gagal terhubung ke server saat menyiapkan dokumen.');
+        } finally {
+            setIsDownloadingPreview(false);
         }
     }
 
@@ -587,15 +734,45 @@ export function LeaveRequestForm({
                                 <FileWarning className="h-4 w-4" aria-hidden="true" /> Pastikan lampiran bukti telah sesuai.
                             </div>
                         )}
-                        <Button type="submit" disabled={submissionState === 'loading'} className="self-end">
-                            {submissionState === 'loading' ? 'Mengirim...' : 'Kirim Permohonan'}
-                        </Button>
-                        {feedbackMessage && (
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="gap-2"
+                                disabled={reviewState === 'loading'}
+                                onClick={handleReview}
+                            >
+                                <Eye className="h-4 w-4" aria-hidden="true" />
+                                {reviewState === 'loading' ? 'Menyiapkan Review...' : 'Review Permohonan'}
+                            </Button>
+                            <Button type="submit" disabled={!canSubmit || submissionState === 'loading'}>
+                                {submissionState === 'loading' ? 'Mengirim...' : 'Kirim Permohonan'}
+                            </Button>
+                        </div>
+                        {reviewMessage && (
                             <p
                                 role="status"
-                                className={cn('text-sm', submissionState === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive')}
+                                className={cn(
+                                    'text-sm',
+                                    reviewState === 'success'
+                                        ? 'text-emerald-600 dark:text-emerald-400'
+                                        : 'text-destructive',
+                                )}
                             >
-                                {feedbackMessage}
+                                {reviewMessage}
+                            </p>
+                        )}
+                        {submissionMessage && (
+                            <p
+                                role="status"
+                                className={cn(
+                                    'text-sm',
+                                    submissionState === 'success'
+                                        ? 'text-emerald-600 dark:text-emerald-400'
+                                        : 'text-destructive',
+                                )}
+                            >
+                                {submissionMessage}
                             </p>
                         )}
                         {conflictSuggestion && (
@@ -607,11 +784,116 @@ export function LeaveRequestForm({
                 </Card>
             </form>
 
-            {submittedRequest && (
-                <div ref={summaryRef}>
+            {reviewData && (
+                <div ref={reviewSummaryRef}>
                     <Card className="border border-primary/30 bg-primary/5 dark:border-primary/40 dark:bg-primary/10">
                         <CardHeader>
                             <CardTitle className="text-base">Review Permohonan Cuti</CardTitle>
+                            <CardDescription>
+                                Periksa kembali detail pengajuan sebelum dikirim untuk persetujuan berjenjang.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid gap-4 text-sm">
+                            <div className="grid gap-1">
+                                <span className="font-semibold text-foreground">Status</span>
+                                <span className="text-muted-foreground">
+                                    {reviewData.status === 'DRAFT'
+                                        ? 'DRAFT · Belum diajukan'
+                                        : reviewData.status}
+                                </span>
+                            </div>
+                            <div className="grid gap-1">
+                                <span className="font-semibold text-foreground">Jenis Cuti</span>
+                                <span className="text-muted-foreground">{reviewData.leave_type?.name ?? '-'}</span>
+                            </div>
+                            <div className="grid gap-1">
+                                <span className="font-semibold text-foreground">Periode</span>
+                                <span className="text-muted-foreground">
+                                    {reviewData.start_date && reviewData.end_date
+                                        ? `${formatDateRange(reviewData.start_date, reviewData.end_date)} · ${reviewData.duration} hari`
+                                        : '-'}
+                                </span>
+                            </div>
+                            <Separator className="my-2" />
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="grid gap-3">
+                                    <span className="font-semibold text-foreground">Data Pegawai</span>
+                                    <dl className="grid gap-2 text-sm">
+                                        <div className="grid gap-0.5">
+                                            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Nama Lengkap</dt>
+                                            <dd className="text-foreground">{reviewData.employee.full_name ?? '-'}</dd>
+                                        </div>
+                                        <div className="grid gap-0.5">
+                                            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Email</dt>
+                                            <dd className="text-foreground">{reviewData.employee.email ?? '-'}</dd>
+                                        </div>
+                                        <div className="grid gap-0.5">
+                                            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Status Pegawai</dt>
+                                            <dd className="text-foreground">{formatEmployeeType(reviewData.employee.employee_type)}</dd>
+                                        </div>
+                                        <div className="grid gap-0.5">
+                                            <dt className="text-xs uppercase tracking-wide text-muted-foreground">NIP / NRP</dt>
+                                            <dd className="text-foreground">{reviewData.employee.nip ?? '-'}</dd>
+                                        </div>
+                                        <div className="grid gap-0.5">
+                                            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Jabatan</dt>
+                                            <dd className="text-foreground">{reviewData.employee.position ?? '-'}</dd>
+                                        </div>
+                                    </dl>
+                                </div>
+                                <div className="grid gap-3">
+                                    <span className="font-semibold text-foreground">Kontak Selama Menjalankan Cuti</span>
+                                    <dl className="grid gap-2 text-sm">
+                                        <div className="grid gap-0.5">
+                                            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Alamat</dt>
+                                            <dd className="text-foreground whitespace-pre-line">
+                                                {reviewData.contact.address_during_leave ?? '-'}
+                                            </dd>
+                                        </div>
+                                        <div className="grid gap-0.5">
+                                            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Nomor Telepon</dt>
+                                            <dd className="text-foreground">{reviewData.contact.contact_phone ?? '-'}</dd>
+                                        </div>
+                                    </dl>
+                                </div>
+                            </div>
+                            <Separator className="my-2" />
+                            <div className="grid gap-1">
+                                <span className="font-semibold text-foreground">Alasan Cuti</span>
+                                <p className="rounded-md border border-primary/20 bg-primary/10 p-3 text-muted-foreground">
+                                    {reviewData.reason}
+                                </p>
+                            </div>
+                        </CardContent>
+                        <CardFooter className="flex flex-col gap-3">
+                            <div className="flex flex-wrap items-center gap-3">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    className="gap-2"
+                                    onClick={handleDownloadPreview}
+                                    disabled={isDownloadingPreview}
+                                >
+                                    <Download className="h-4 w-4" aria-hidden="true" />
+                                    {isDownloadingPreview ? 'Menyiapkan Dokumen...' : 'Unduh Formulir Review'}
+                                </Button>
+                                <span className="text-xs text-muted-foreground">
+                                    Gunakan formulir ini untuk memastikan seluruh data sudah sesuai sebelum dikirim.
+                                </span>
+                            </div>
+                            {previewDownloadError && (
+                                <p className="text-xs text-destructive">{previewDownloadError}</p>
+                            )}
+                        </CardFooter>
+                    </Card>
+                </div>
+            )}
+
+            {submittedRequest && (
+                <div ref={finalSummaryRef}>
+                    <Card className="border border-primary/30 bg-primary/5 dark:border-primary/40 dark:bg-primary/10">
+                        <CardHeader>
+                            <CardTitle className="text-base">Permohonan Berhasil Dikirim</CardTitle>
                             <CardDescription>
                                 Simak kembali detail yang terekam di sistem sebelum menunggu persetujuan berjenjang.
                             </CardDescription>
