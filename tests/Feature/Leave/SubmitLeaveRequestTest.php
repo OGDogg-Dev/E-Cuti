@@ -47,8 +47,8 @@ function createPolicy(LeaveType $leaveType, ?Division $division = null): LeavePo
         'leave_type_id' => $leaveType->id,
         'division_id' => $division?->id,
         'approval_matrix' => [
-            ['stage' => 'KEPALA', 'role' => 'division_head'],
-            ['stage' => 'SDM', 'role' => 'hr_manager'],
+            ['stage' => 'KEPALA', 'role' => 'kepala_kantor'],
+            ['stage' => 'SDM', 'role' => 'sdm'],
         ],
         'flow_type' => ApprovalFlowType::SERIAL,
     ]);
@@ -57,8 +57,8 @@ function createPolicy(LeaveType $leaveType, ?Division $division = null): LeavePo
 function createEmployeeUser(Division $division): User
 {
     $role = Role::query()->firstOrCreate(
-        ['name' => 'employee'],
-        ['display_name' => 'Employee', 'description' => null]
+        ['name' => 'pegawai'],
+        ['display_name' => 'Pegawai', 'description' => null]
     );
 
     /** @var User $user */
@@ -97,7 +97,7 @@ function leavePayload(LeaveType $leaveType, LeavePolicy $policy, array $override
     return array_merge($defaults, $overrides);
 }
 
-test('employee cannot submit leave with a policy outside their division', function () {
+test('pegawai cannot submit leave with a policy outside their division', function () {
     $divisionA = createDivision('SDM', 'SDM');
     $divisionB = createDivision('KEUANGAN', 'Keuangan');
     $leaveType = createLeaveType();
@@ -155,7 +155,7 @@ test('threshold evaluation counts the candidate submission against minimum prese
         'leave_type_id' => $leaveType->id,
         'division_id' => $division->id,
         'approval_matrix' => [
-            ['stage' => 'KEPALA', 'role' => 'division_head'],
+            ['stage' => 'KEPALA', 'role' => 'kepala_kantor'],
         ],
         'threshold_rules' => [[
             'min_presence' => 0.5,

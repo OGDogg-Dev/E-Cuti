@@ -235,8 +235,8 @@ class LeaveRequestWorkflowService
             $previousStages = $matrix
                 ->take($stageIndex)
                 ->reject(function ($previousConfig) use ($stageConfig) {
-                    return $this->stageHasRole($stageConfig, 'hr_manager')
-                        && $this->stageHasRole($previousConfig, 'division_head');
+                    return $this->stageHasRole($stageConfig, 'sdm')
+                        && $this->stageHasRole($previousConfig, 'kepala_kantor');
                 })
                 ->pluck('stage')
                 ->filter()
@@ -249,9 +249,9 @@ class LeaveRequestWorkflowService
                 return false;
             }
 
-            if ($this->stageHasRole($stageConfig, 'division_head')) {
+            if ($this->stageHasRole($stageConfig, 'kepala_kantor')) {
                 $hrStages = $matrix
-                    ->filter(fn ($config) => $this->stageHasRole($config, 'hr_manager'))
+                    ->filter(fn ($config) => $this->stageHasRole($config, 'sdm'))
                     ->pluck('stage')
                     ->filter()
                     ->all();
@@ -300,8 +300,8 @@ class LeaveRequestWorkflowService
         }
 
         return match ($role) {
-            'hr_manager', 'super_admin' => LeaveRequestStatus::WAITING_APPROVAL_SDM,
-            'division_head' => LeaveRequestStatus::WAITING_APPROVAL_KEPALA,
+            'sdm', 'admin' => LeaveRequestStatus::WAITING_APPROVAL_SDM,
+            'kepala_kantor' => LeaveRequestStatus::WAITING_APPROVAL_KEPALA,
             default => LeaveRequestStatus::WAITING_APPROVAL_BOTH,
         };
     }

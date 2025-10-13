@@ -17,7 +17,7 @@ class LeaveRequestRepository
             ->with(['leaveType', 'division'])
             ->latest('created_at');
 
-        if ($user->hasAnyRole(['super_admin', 'hr_manager', 'division_head'])) {
+        if ($user->hasAnyRole(['admin', 'sdm', 'kepala_kantor'])) {
             // Full access for administrative roles.
         } else {
             $query->where('user_id', $user->getKey());

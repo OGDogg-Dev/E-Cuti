@@ -27,7 +27,7 @@ class UserSeeder extends Seeder
                 'employee_number' => 'EMP-0001',
                 'division' => 'SDM',
                 'password' => 'password',
-                'roles' => ['super_admin', 'hr_manager'],
+                'roles' => ['admin', 'sdm'],
                 'balances' => [
                     [
                         'leave_type' => 'AL',
@@ -45,7 +45,7 @@ class UserSeeder extends Seeder
                 'employee_number' => 'EMP-0112',
                 'division' => 'OPS',
                 'password' => 'password',
-                'roles' => ['division_head'],
+                'roles' => ['kepala_kantor'],
                 'balances' => [
                     [
                         'leave_type' => 'AL',
@@ -71,7 +71,7 @@ class UserSeeder extends Seeder
                 'employee_number' => 'EMP-0234',
                 'division' => 'ITS',
                 'password' => 'password',
-                'roles' => ['employee'],
+                'roles' => ['pegawai'],
                 'balances' => [
                     [
                         'leave_type' => 'AL',
@@ -97,7 +97,7 @@ class UserSeeder extends Seeder
                 'employee_number' => 'EMP-0321',
                 'division' => 'SDM',
                 'password' => 'password',
-                'roles' => ['employee'],
+                'roles' => ['pegawai'],
                 'balances' => [
                     [
                         'leave_type' => 'AL',

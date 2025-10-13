@@ -10,16 +10,16 @@ class LeaveRequestPolicy
     public function viewAny(User $user): bool
     {
         return $user->hasAnyRole([
-            'super_admin',
-            'hr_manager',
-            'division_head',
-            'employee',
+            'admin',
+            'sdm',
+            'kepala_kantor',
+            'pegawai',
         ]);
     }
 
     public function view(User $user, LeaveRequest $leaveRequest): bool
     {
-        if ($user->hasAnyRole(['super_admin', 'hr_manager', 'division_head'])) {
+        if ($user->hasAnyRole(['admin', 'sdm', 'kepala_kantor'])) {
             return true;
         }
 
@@ -29,10 +29,10 @@ class LeaveRequestPolicy
     public function create(User $user): bool
     {
         return $user->hasAnyRole([
-            'employee',
-            'division_head',
-            'hr_manager',
-            'super_admin',
+            'pegawai',
+            'kepala_kantor',
+            'sdm',
+            'admin',
         ]);
     }
 }
