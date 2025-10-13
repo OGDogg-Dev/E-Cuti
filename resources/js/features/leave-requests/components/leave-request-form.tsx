@@ -109,6 +109,28 @@ function getXsrfToken(): string | null {
     return match ? decodeURIComponent(match[1]) : null;
 }
 
+async function ensureCsrfCookie(): Promise<string | null> {
+    let token = getXsrfToken();
+
+    if (token) {
+        return token;
+    }
+
+    try {
+        await fetch('/sanctum/csrf-cookie', {
+            method: 'GET',
+            credentials: 'include',
+        });
+    } catch (error) {
+        console.error('Gagal memuat cookie CSRF', error);
+        return null;
+    }
+
+    token = getXsrfToken();
+
+    return token;
+}
+
 function formatEmployeeType(type?: string | null): string {
     if (!type) {
         return '-';
@@ -254,7 +276,7 @@ export function LeaveRequestForm({
         }
 
         try {
-            const xsrfToken = getXsrfToken();
+            const xsrfToken = await ensureCsrfCookie();
             const response = await fetch('/api/leave-requests', {
                 method: 'POST',
                 headers: {
@@ -262,6 +284,7 @@ export function LeaveRequestForm({
                     'X-Requested-With': 'XMLHttpRequest',
                     ...(xsrfToken ? { 'X-XSRF-TOKEN': xsrfToken, 'X-CSRF-TOKEN': xsrfToken } : {}),
                 },
+                credentials: 'include',
                 body: formData,
             });
 
