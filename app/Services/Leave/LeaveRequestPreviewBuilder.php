@@ -2,11 +2,12 @@
 
 namespace App\Services\Leave;
 
-use App\Enums\LeaveRequestStatus;
 use App\Domain\Leave\DataTransferObjects\LeaveRequestData;
+use App\Enums\LeaveRequestStatus;
 use App\Models\LeaveAttachment;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
+use App\Models\User;
 use Illuminate\Support\Collection;
 
 class LeaveRequestPreviewBuilder
@@ -32,6 +33,7 @@ class LeaveRequestPreviewBuilder
         $leaveRequest->setRelation('attachments', $this->buildAttachments($data));
         $leaveRequest->submitted_at = null;
         $leaveRequest->finalized_at = null;
+        $leaveRequest->setAttribute('supervisor_metadata', $this->resolveHeadSigner());
 
         return $leaveRequest;
     }
@@ -49,5 +51,29 @@ class LeaveRequestPreviewBuilder
                 'size' => $data->attachment->getSize(),
             ]),
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function resolveHeadSigner(): ?array
+    {
+        $head = User::query()
+            ->with('division:id,name')
+            ->whereHas('roles', fn ($query) => $query->where('name', 'kepala_kantor'))
+            ->orderBy('id')
+            ->first();
+
+        if (! $head) {
+            return null;
+        }
+
+        return [
+            'id' => $head->getKey(),
+            'name' => $head->name,
+            'nip' => $head->employee_number,
+            'position' => 'Kepala Kantor',
+            'division' => $head->division?->name,
+        ];
     }
 }

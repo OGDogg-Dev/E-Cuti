@@ -18,6 +18,7 @@ class LeaveRequestPreviewResource extends JsonResource
             'leave_type' => [
                 'id' => $this->leaveType?->id,
                 'name' => $this->leaveType?->name,
+                'code' => $this->leaveType?->code,
             ],
             'division' => [
                 'id' => $this->division?->id,
@@ -35,6 +36,9 @@ class LeaveRequestPreviewResource extends JsonResource
                 'format' => 'DOCX',
                 'url' => null,
             ],
+            'signers' => [
+                'head' => $this->formatHeadSigner(),
+            ],
         ];
     }
 
@@ -51,6 +55,8 @@ class LeaveRequestPreviewResource extends JsonResource
             'nip' => $metadata['nip'] ?? $this->user?->employee_number,
             'position' => $metadata['position'] ?? null,
             'employee_type' => $metadata['employee_type'] ?? null,
+            'division' => $this->division?->name,
+            'unit_name' => $this->division?->name,
         ];
     }
 
@@ -64,6 +70,26 @@ class LeaveRequestPreviewResource extends JsonResource
         return [
             'address_during_leave' => $metadata['address_during_leave'] ?? null,
             'contact_phone' => $metadata['contact_phone'] ?? null,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function formatHeadSigner(): ?array
+    {
+        $metadata = $this->getAttribute('supervisor_metadata');
+
+        if (! is_array($metadata)) {
+            return null;
+        }
+
+        return [
+            'id' => $metadata['id'] ?? null,
+            'name' => $metadata['name'] ?? null,
+            'nip' => $metadata['nip'] ?? null,
+            'position' => $metadata['position'] ?? null,
+            'division' => $metadata['division'] ?? null,
         ];
     }
 }

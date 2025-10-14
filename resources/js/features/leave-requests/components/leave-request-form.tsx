@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { calculateWorkingDays, formatDateRange } from '@/features/leave-requests/utils';
+import { downloadReviewDocx } from '@/features/leave-requests/utils/review-docx';
 import { cn } from '@/lib/utils';
 import { AlertTriangle, Download, Eye, FileWarning } from 'lucide-react';
 
@@ -71,6 +72,11 @@ type LeaveRequestResponse = {
     leave_type: {
         id: number | null;
         name: string | null;
+        code?: string | null;
+    } | null;
+    division?: {
+        id: number | null;
+        name: string | null;
     } | null;
     start_date: string | null;
     end_date: string | null;
@@ -83,6 +89,8 @@ type LeaveRequestResponse = {
         nip: string | null;
         position: string | null;
         employee_type: string | null;
+        unit_name?: string | null;
+        city?: string | null;
     };
     contact: {
         address_during_leave: string | null;
@@ -93,6 +101,15 @@ type LeaveRequestResponse = {
         format?: string | null;
         url: string | null;
     };
+    signers?: {
+        head?: {
+            id: number | null;
+            name: string | null;
+            nip: string | null;
+            position?: string | null;
+            division?: string | null;
+        } | null;
+    } | null;
 };
 
 type ConflictSuggestion = {
@@ -433,48 +450,48 @@ export function LeaveRequestForm({
         setIsDownloadingPreview(true);
         setPreviewDownloadError(null);
 
-        const formData = buildFormData();
-
         try {
-            const xsrfToken = await ensureCsrfCookie();
-            const response = await fetch('/api/leave-requests/review/document', {
-                method: 'POST',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    ...(xsrfToken ? { 'X-XSRF-TOKEN': xsrfToken } : {}),
+            await downloadReviewDocx(
+                {
+                    status: reviewData.status,
+                    leave_type: {
+                        id: reviewData.leave_type?.id ?? null,
+                        name: reviewData.leave_type?.name,
+                        code: selectedLeaveType?.code ?? reviewData.leave_type?.code ?? null,
+                    },
+                    start_date: reviewData.start_date,
+                    end_date: reviewData.end_date,
+                    duration: reviewData.duration,
+                    reason: reviewData.reason,
+                    employee: {
+                        full_name: reviewData.employee.full_name,
+                        email: reviewData.employee.email,
+                        employee_type: reviewData.employee.employee_type,
+                        nip: reviewData.employee.nip,
+                        position: reviewData.employee.position,
+                        unit_name: reviewData.employee.unit_name ?? reviewData.division?.name ?? profile.division ?? null,
+                        city: reviewData.employee.city,
+                    },
+                    contact: {
+                        address_during_leave: reviewData.contact.address_during_leave,
+                        contact_phone: reviewData.contact.contact_phone,
+                    },
+                    supervisor_name: reviewData.signers?.head?.name ?? null,
+                    supervisor_nip: reviewData.signers?.head?.nip ?? null,
+                    supervisor_position: reviewData.signers?.head?.position ?? null,
+                    supervisor_division: reviewData.signers?.head?.division ?? null,
                 },
-                credentials: 'include',
-                body: formData,
-            });
-
-            if (response.status === 422) {
-                const payload = await response.json();
-                setErrors(payload.errors ?? {});
-                setReviewData(null);
-                setReviewState('error');
-                setReviewMessage('Beberapa data belum valid. Mohon lakukan review ulang sebelum mengunduh formulir.');
-                setPreviewDownloadError('Beberapa data belum valid sehingga formulir tidak dapat diunduh.');
-                return;
-            }
-
-            if (!response.ok) {
-                const text = await response.text();
-                setPreviewDownloadError(text || 'Gagal menyiapkan dokumen review.');
-                return;
-            }
-
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `preview-formulir-cuti-${formState.startDate || 'terkini'}.docx`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(url);
+                {
+                    leaveTypes: leaveTypes.map((type) => ({
+                        id: type.id,
+                        code: type.code,
+                        name: type.name,
+                    })),
+                },
+            );
         } catch (error) {
             console.error(error);
-            setPreviewDownloadError('Gagal terhubung ke server saat menyiapkan dokumen.');
+            setPreviewDownloadError('Gagal menyiapkan dokumen review. Silakan coba lagi.');
         } finally {
             setIsDownloadingPreview(false);
         }
