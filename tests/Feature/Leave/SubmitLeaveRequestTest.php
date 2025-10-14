@@ -202,3 +202,34 @@ test('threshold evaluation counts the candidate submission against minimum prese
     expect($ratio)->toBe(0.0);
     expect($evaluator->violatesThreshold($candidate))->toBeTrue();
 });
+
+test('review preview generates a docx document for download', function () {
+    $division = createDivision('ITS', 'Teknologi Informasi');
+    $leaveType = createLeaveType();
+    $policy = createPolicy($leaveType, $division);
+
+    $user = createEmployeeUser($division);
+    seedBalance($user, $leaveType);
+
+    $this->actingAs($user, 'sanctum');
+
+    $payload = leavePayload($leaveType, $policy, [
+        'email' => $user->email,
+        'employee_type' => 'ASN',
+        'full_name' => $user->name,
+        'nip' => '198901012009011001',
+        'position' => 'Pengembang Aplikasi',
+        'address_during_leave' => 'Jl. Melati No. 1, Jakarta',
+        'contact_phone' => '081200000000',
+    ]);
+
+    $this->postJson('/api/leave-requests/review', $payload)->assertOk();
+
+    $documentResponse = $this->post('/api/leave-requests/review/document', $payload);
+
+    $documentResponse
+        ->assertOk()
+        ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+
+    expect($documentResponse->headers->get('content-disposition'))->toContain('.docx');
+});

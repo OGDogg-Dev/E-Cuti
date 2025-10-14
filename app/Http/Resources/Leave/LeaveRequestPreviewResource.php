@@ -32,6 +32,7 @@ class LeaveRequestPreviewResource extends JsonResource
             'contact' => $this->formatContactMetadata(),
             'document' => [
                 'downloadable' => true,
+                'format' => 'DOCX',
                 'url' => null,
             ],
         ];

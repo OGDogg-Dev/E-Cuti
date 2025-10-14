@@ -23,7 +23,7 @@ class LeaveRequestDocumentController extends Controller
             abort(403, 'Anda tidak memiliki akses untuk mengunduh formulir ini.');
         }
 
-        $pdf = $this->documentService->generate($leaveRequest);
+        $pdf = $this->documentService->generatePdf($leaveRequest);
         $fileName = $this->documentService->fileName($leaveRequest);
 
         return $pdf->download($fileName);

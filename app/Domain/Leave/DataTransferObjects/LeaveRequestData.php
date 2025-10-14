@@ -25,13 +25,13 @@ class LeaveRequestData
     public static function fromRequest(StoreLeaveRequestRequest $request, User $user): self
     {
         $metadata = [
-            'email' => $request->string('email')->toString(),
-            'employee_type' => $request->string('employee_type')->toString(),
-            'full_name' => $request->string('full_name')->toString(),
-            'nip' => $request->input('nip'),
-            'position' => $request->string('position')->toString(),
-            'address_during_leave' => $request->string('address_during_leave')->toString(),
-            'contact_phone' => $request->string('contact_phone')->toString(),
+            'email' => $request->filled('email') ? $request->string('email')->toString() : $user->email,
+            'employee_type' => $request->filled('employee_type') ? $request->string('employee_type')->toString() : null,
+            'full_name' => $request->filled('full_name') ? $request->string('full_name')->toString() : $user->name,
+            'nip' => $request->filled('nip') ? $request->string('nip')->toString() : $user->employee_number,
+            'position' => $request->filled('position') ? $request->string('position')->toString() : null,
+            'address_during_leave' => $request->filled('address_during_leave') ? $request->string('address_during_leave')->toString() : null,
+            'contact_phone' => $request->filled('contact_phone') ? $request->string('contact_phone')->toString() : null,
         ];
 
         return new self(
@@ -64,4 +64,3 @@ class LeaveRequestData
         ];
     }
 }
-

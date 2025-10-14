@@ -49,9 +49,17 @@ class LeaveRequestReviewController extends Controller
         $this->policyResolver->resolve($data->user, $data->policyId, $data->leaveTypeId);
 
         $preview = $this->previewBuilder->build($data);
-        $pdf = $this->documentService->generate($preview);
-        $fileName = 'preview-'.$this->documentService->fileName($preview);
+        $documentBinary = $this->documentService->generateDocx($preview);
+        $fileName = 'preview-'.$this->documentService->fileName($preview, 'docx');
 
-        return $pdf->download($fileName);
+        return response()->streamDownload(
+            static function () use ($documentBinary): void {
+                echo $documentBinary;
+            },
+            $fileName,
+            [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            ]
+        );
     }
 }

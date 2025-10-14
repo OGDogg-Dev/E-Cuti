@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -28,6 +29,13 @@ class LeaveRequestApproval extends Model
         'acted_at' => 'datetime',
         'sla_snapshot' => AsArrayObject::class,
     ];
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope('ordered', function (Builder $builder): void {
+            $builder->orderBy('id');
+        });
+    }
 
     public function leaveRequest(): BelongsTo
     {

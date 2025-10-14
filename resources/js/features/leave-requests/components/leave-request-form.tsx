@@ -90,6 +90,7 @@ type LeaveRequestResponse = {
     };
     document: {
         downloadable: boolean;
+        format?: string | null;
         url: string | null;
     };
 };
@@ -103,6 +104,14 @@ const EMPLOYEE_TYPE_LABELS: Record<string, string> = {
     ASN: 'ASN (Aparatur Sipil Negara)',
     PPNPN: 'PPNPN (Pegawai Pemerintah Non Pegawai Negeri)',
 };
+
+function unwrapResource<T>(payload: unknown): T {
+    if (payload && typeof payload === 'object' && payload !== null && 'data' in payload) {
+        return (payload as { data: T }).data;
+    }
+
+    return payload as T;
+}
 
 function getXsrfToken(): string | null {
     const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
@@ -317,7 +326,8 @@ export function LeaveRequestForm({
             });
 
             if (response.ok) {
-                const payload = (await response.json()) as LeaveRequestResponse;
+                const json = await response.json();
+                const payload = unwrapResource<LeaveRequestResponse>(json);
                 setReviewData(payload);
                 setReviewMessage('Review berhasil disiapkan. Silakan unduh formulir sebelum mengirim permohonan.');
                 setReviewState('success');
@@ -380,7 +390,8 @@ export function LeaveRequestForm({
             });
 
             if (response.status === 201) {
-                const payload = (await response.json()) as LeaveRequestResponse;
+                const json = await response.json();
+                const payload = unwrapResource<LeaveRequestResponse>(json);
                 setSubmittedRequest(payload);
                 setSubmissionMessage('Permohonan cuti berhasil dikirim dan menunggu validasi SDM.');
                 setSubmissionState('success');
@@ -456,7 +467,7 @@ export function LeaveRequestForm({
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `preview-formulir-cuti-${formState.startDate || 'terkini'}.pdf`;
+            link.download = `preview-formulir-cuti-${formState.startDate || 'terkini'}.docx`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -875,7 +886,9 @@ export function LeaveRequestForm({
                                     disabled={isDownloadingPreview}
                                 >
                                     <Download className="h-4 w-4" aria-hidden="true" />
-                                    {isDownloadingPreview ? 'Menyiapkan Dokumen...' : 'Unduh Formulir Review'}
+                                    {isDownloadingPreview
+                                        ? 'Menyiapkan Dokumen...'
+                                        : 'Unduh Formulir Review (DOCX)'}
                                 </Button>
                                 <span className="text-xs text-muted-foreground">
                                     Gunakan formulir ini untuk memastikan seluruh data sudah sesuai sebelum dikirim.
@@ -969,7 +982,8 @@ export function LeaveRequestForm({
                                 <div className="mt-2 flex flex-wrap items-center gap-3">
                                     <Button asChild size="sm" className="gap-2">
                                         <a href={submittedRequest.document.url} target="_blank" rel="noreferrer">
-                                            <Download className="h-4 w-4" /> Unduh Formulir PDF
+                                            <Download className="h-4 w-4" /> Unduh Formulir{' '}
+                                            {(submittedRequest.document.format ?? 'PDF')}
                                         </a>
                                     </Button>
                                     <span className="text-xs text-muted-foreground">

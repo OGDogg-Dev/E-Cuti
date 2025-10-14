@@ -101,6 +101,7 @@ class LeaveRequestResource extends JsonResource
         if (! $user) {
             return [
                 'downloadable' => false,
+                'format' => 'PDF',
                 'url' => null,
             ];
         }
@@ -111,6 +112,7 @@ class LeaveRequestResource extends JsonResource
 
         return [
             'downloadable' => $canDownload,
+            'format' => 'PDF',
             'url' => $canDownload ? route('api.leave-requests.document', $this->resource) : null,
         ];
     }
