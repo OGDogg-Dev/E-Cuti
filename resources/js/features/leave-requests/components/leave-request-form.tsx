@@ -319,7 +319,7 @@ export function LeaveRequestForm({
                 headers: {
                     Accept: 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
-                    ...(xsrfToken ? { 'X-XSRF-TOKEN': xsrfToken, 'X-CSRF-TOKEN': xsrfToken } : {}),
+                    ...(xsrfToken ? { 'X-XSRF-TOKEN': xsrfToken } : {}),
                 },
                 credentials: 'include',
                 body: formData,
@@ -383,7 +383,7 @@ export function LeaveRequestForm({
                 headers: {
                     Accept: 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
-                    ...(xsrfToken ? { 'X-XSRF-TOKEN': xsrfToken, 'X-CSRF-TOKEN': xsrfToken } : {}),
+                    ...(xsrfToken ? { 'X-XSRF-TOKEN': xsrfToken } : {}),
                 },
                 credentials: 'include',
                 body: formData,
@@ -441,7 +441,7 @@ export function LeaveRequestForm({
                 method: 'POST',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
-                    ...(xsrfToken ? { 'X-XSRF-TOKEN': xsrfToken, 'X-CSRF-TOKEN': xsrfToken } : {}),
+                    ...(xsrfToken ? { 'X-XSRF-TOKEN': xsrfToken } : {}),
                 },
                 credentials: 'include',
                 body: formData,
